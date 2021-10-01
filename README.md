@@ -47,4 +47,6 @@ This is the base object and, optionally, the individual vertices to be beveled. 
 ## Changelog
 
 ** v0.2021.09.30 -- initial upload<br/>
+** v0.2021.10.01 -- handle case where user has selected non-vertex subobjects
+** fix bug related to lowercase / uppercase filename
 
