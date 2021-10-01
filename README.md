@@ -42,3 +42,5 @@ This is a string property containing the version of the Bevel macro used to crea
 ## Vertices
 This is the base object and, optionally, the individual vertices to be beveled.  Do not delete this object or else it will break the Bevel object.  The vertices are added to a list automatically (based on which vertices were selected), but you can edit this using the property editor if you wish later to add/remove vertices.  It's a little bit tricky to do, but not difficult once you figure out the process.  Double click in the editor dialog in the field just to the right of the object name and begin typing in the vertices you desire.  When finished be sure to select again the object before clicking OK.  Otherwise it can be accidentally deselected.
 
+<img src="bevel_scr2.png" alt="screenshot 2>
+
