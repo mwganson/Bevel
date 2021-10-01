@@ -1,0 +1,455 @@
+# -*- coding: utf-8 -*-
+__version__ = "0.2021.09.30"
+#__version__ = "0.2021.09.30"
+#__title__ = "Bevel Macro"
+#__author__ = "<TheMarkster> 2021"
+#__license__ = "LGPL 2.1"
+#__doc__ = "Bevel the selected vertices of an object."
+#__usage__ = '''Select the vertices or the entire object and activate the tool, modify properties as desired'''
+#import Part, FreeCADGui, FreeCAD
+#BASENAME = "bevel"
+
+#class Bevel:
+#    def __init__(self,obj):
+#        obj.addExtension("Part::AttachExtensionPython")
+#        obj.addProperty("App::PropertyLength","Length","Bevel","distance from vertex to point along edge to be removed").Length = 1
+#        obj.addProperty("App::PropertyLinkSub","Vertices","Bevel","Selected vertices to be beveled")
+#        obj.addProperty("App::PropertyString", "Version", "Bevel", "version this object was created with").Version = __version__
+#        obj.addProperty("App::PropertyBool","UseAllVertices","Bevel","use all vertices of this object").UseAllVertices = False
+#        if not hasattr(obj,"Refine"):
+#            obj.addProperty("App::PropertyBool","Refine", "Bevel", "refine feature").Refine = False
+#        obj.addProperty("App::PropertyBool","FilletEdges","Bevel", "whether to fillet the edges created with the bevel").FilletEdges = False
+#        obj.addProperty("App::PropertyFloatConstraint", "FilletRadius","Bevel","radius of fillets in mm").FilletRadius = (.1,0.001,10e17,.1)
+#        obj.addProperty("Part::PropertyPartShape","AddSubShape","Base","Used for pattern features")
+#        obj.addProperty("App::PropertyLink","PreviousSolid","Bevel","previous tip in the part design body to fuse this object with")
+#        obj.addProperty("App::PropertyBool","ClaimChildren","Bevel","whether to claim children in the tree").ClaimChildren = True
+#        obj.setEditorMode("AddSubShape",2) #hidden
+#        obj.Proxy = self
+
+#    def execute(self,fp):
+#        if not fp.Vertices:
+#            return
+#        vertices = []
+#        object = fp.Vertices[0]
+#        mapped = {}
+#        lofts = []
+#        if not fp.UseAllVertices:
+#            for vname in fp.Vertices[1]:
+#                vertices.append(getattr(object.Shape,vname))
+#        else:
+#            for ii in range(0,len(object.Shape.removeSplitter().Vertexes)):
+#                name = "Vertex"+str(ii+1)
+#                vertices.append(getattr(object.Shape.removeSplitter(),name))
+#        for vert in vertices:
+#            shape_pts = []
+#            for edge in object.Shape.removeSplitter().Edges:
+#                for edge_vert in edge.Vertexes:
+#                    if edge_vert.Point.isEqual(vert.Point,1e-7):
+#                        #this is an edge containing a selected vertex
+#                        other_vert = self.getOtherVertex(edge_vert, edge)
+#                        if other_vert:
+#                            dir = edge_vert.Point.sub(other_vert.Point).normalize()
+#                            #line = Part.makeLine(edge_vert.Point,edge_vert.Point.sub(dir.multiply(fp.Length)))
+#                            mid = edge_vert.Point.sub(dir.multiply(fp.Length)) #point along edge fp.Length distance from selected vertex
+#                            shape_pts.append(mid)
+#            mapped[vert] = shape_pts
+#        for k,val in mapped.items():
+#            if not val:
+#                FreeCAD.Console.PrintError("Error making bevel\n")
+#                return
+#            pts = val+[val[0]]
+#            if len(pts) > 2:
+#                poly = Part.makePolygon(pts)
+#                lofts.append(Part.makeLoft([k,poly],True))
+#            else:
+#                FreeCAD.Console.PrintError("Error making bevel\n")
+#                return
+#        comp = Part.makeCompound(lofts)
+#        if len(lofts)>1:
+#            fusion = Part.Shape(lofts[0]).fuse(lofts[1:])
+#        else:
+#            if lofts:
+#                fusion = Part.Shape(lofts[0])
+#            else:
+#                fusion = Part.Shape()
+#        try:
+#            shape = object.Shape.cut(fusion)
+#            if fp.Refine:
+#                shape = shape.removeSplitter()
+#        except:
+#            shape = None
+#        if shape and fp.FilletEdges:
+#            common = self.findCommonEdges(shape, fusion)
+#            if common:
+#                shape = shape.makeFillet(fp.FilletRadius, common)
+#        if fp.PreviousSolid and not shape.isNull():
+#            fp.AddSubShape = shape.common(fp.PreviousSolid.Shape)
+#            fp.Shape = shape
+#        else:
+#            fp.Shape = shape if shape else Part.Shape()
+#            fp.AddSubShape = shape
+#        object.ViewObject.Visibility = False if shape else True
+
+
+#    def getOtherVertex(self,v0,edge):
+#        '''get the other vertex from this edge of which v0 is one vertex'''
+#        for v in edge.Vertexes:
+#            if not v.Point.isEqual(v0.Point,1e-7):
+#                return v
+#        return None #not found
+
+#    def findCommonEdges(self, shape1, shape2):
+#        '''find the common edges of 2 shapes, return them as a list of edges of shape1'''
+#        common = []
+#        for edge in shape1.Edges:
+#            for edge2 in shape2.Edges:
+#                if self.isSameEdge(edge,edge2) and edge not in common:
+#                    common.append(edge)
+#        return common
+
+#    def isSameEdge(self, edge1, edge2):
+#        '''compare 2 edges.  They are the same if their vertices are within tolerance distance of each other 1e-7'''
+#        equals = 0
+#        if edge1.Vertex1.Point.isEqual(edge2.Vertex1.Point, 1e-7) or edge1.Vertex1.Point.isEqual(edge2.Vertex2.Point, 1e-7):
+#            equals += 1
+#        if edge1.Vertex2.Point.isEqual(edge2.Vertex1.Point, 1e-7) or edge1.Vertex2.Point.isEqual(edge2.Vertex2.Point, 1e-7):
+#            equals += 1
+#        return True if equals == 2 else False
+
+
+        
+#class BevelVP:
+
+#    def __init__(self, obj):
+#        '''Set this object to the proxy object of the actual view provider'''
+#        obj.Proxy = self
+ 
+#    def attach(self, obj):
+#        '''Setup the scene sub-graph of the view provider, this method is mandatory'''
+#        self.Object = obj.Object
+ 
+#    def updateData(self, fp, prop):
+#        '''If a property of the handled feature has changed we have the chance to handle this here'''
+#        # fp is the handled feature, prop is the name of the property that has changed
+#        pass
+ 
+#    def getDisplayModes(self,obj):
+#        '''Return a list of display modes.'''
+#        modes=[]
+#        modes.append("Flat Lines")
+#        return modes
+ 
+#    def getDefaultDisplayMode(self):
+#        '''Return the name of the default display mode. It must be defined in getDisplayModes.'''
+#        return "Flat Lines"
+ 
+#    def setDisplayMode(self,mode):
+#        '''Map the display mode defined in attach with those defined in getDisplayModes.\
+#                Since they have the same names nothing needs to be done. This method is optional'''
+#        return mode
+ 
+#    def onChanged(self, vp, prop):
+#        '''Here we can do something when a single property got changed'''
+#        #FreeCAD.Console.PrintMessage("Change property: " + str(prop) + ""+chr(10))
+
+#    def claimChildren(self):
+#        if self.Object.ClaimChildren and self.Object.Vertices and not self.Object.Shape.isNull():
+#            return [self.Object.Vertices[0]]
+#        else:
+#            return []
+
+#    def onDelete(self, vobj, subelements):
+#        if vobj.Object.Vertices:
+#            vobj.Object.Vertices[0].ViewObject.Visibility = True
+#        return True
+
+#    def getIcon(self):
+#        '''Return the icon in XPM format which will appear in the tree view. This method is\
+#                optional and if not defined a default icon is shown.'''
+#        return '''
+#/* XPM */
+#static char *_632870743861[] = {
+#/* columns rows colors chars-per-pixel */
+#"64 64 53 1 ",
+#"  c #2A2A2A2A2A2A",
+#". c #2C2C2C2C2C2C",
+#"X c #323232323232",
+#"o c #373737373737",
+#"O c #3A3A3A3A3A3A",
+#"+ c #414141414141",
+#"@ c gray28",
+#"# c #484848484848",
+#"$ c #4C4C4C4C4C4C",
+#"% c #515151515151",
+#"& c gray33",
+#"* c gray35",
+#"= c #5D5D5D5D5D5D",
+#"- c gray38",
+#"; c gray40",
+#": c #686868686868",
+#"> c #6F6F6F6F6F6F",
+#", c #727272727272",
+#"< c #777777777777",
+#"1 c #7B7B7B7B7B7B",
+#"2 c #7E7E7E7E7E7E",
+#"3 c #808080808080",
+#"4 c gray53",
+#"5 c #898989898989",
+#"6 c gray56",
+#"7 c #909090909090",
+#"8 c gray59",
+#"9 c #989898989898",
+#"0 c gray61",
+#"q c #A4A4A4A4A4A4",
+#"w c #A7A7A7A7A7A7",
+#"e c gray66",
+#"r c #AEAEAEAEAEAE",
+#"t c #B2B2B2B2B2B2",
+#"y c gray71",
+#"u c gray72",
+#"i c #BCBCBCBCBCBC",
+#"p c gray76",
+#"a c #C5C5C5C5C5C5",
+#"s c gray79",
+#"d c #CECECECECECE",
+#"f c #D0D0D0D0D0D0",
+#"g c gray84",
+#"h c gainsboro",
+#"j c gray87",
+#"k c #E2E2E2E2E2E2",
+#"l c #E7E7E7E7E7E7",
+#"z c #EAEAEAEAEAEA",
+#"x c #ECECECECECEC",
+#"c c #F3F3F3F3F3F3",
+#"v c #F4F4F4F4F4F4",
+#"b c #F9F9F9F9F9F9",
+#"n c none",
+#/* pixels */
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnhbnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnbkpr93,<<9annnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnbhpr83,<222322222<whnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnn0,12323232323223232312eknnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnw22232323232322323232322<4txnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnt222323232323233232323232223>fnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnu22322323232323223232323232322-cnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnna123223232323232332323232323232:,nnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnd13223323232323232232323232323232oennnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnns122323232323232323323232323232323=Xhnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnng22232323232323232322323232323232322.%bnnnnnnnnnnnnn",
+#"nnnnnnnnnnnn8>3232323232232323232323232323232323& 4nnnnnnnnnnnnn",
+#"nnnnnnnnnnnb>-22232323233232323232323232323232322 .unnnnnnnnnnnn",
+#"nnnnnnnnnnnp>:<2323232322323232323232323232323232# Olnnnnnnnnnnn",
+#"nnnnnnnnnnn7,>;223232323323232323232323232323232<&O =nnnnnnnnnnn",
+#"nnnnnnnnnnc:,,;13232323223232323232323232323232<*==$.9nnnnnnnnnn",
+#"nnnnnnnnnnu,>>,:2323232332323232323232323232221*===-*Odnnnnnnnnn",
+#"nnnnnnnnnn4>,,,-233232322323232323232323232322==-=-====nnnnnnnnn",
+#"nnnnnnnnnz:,,>,,>2232323323232323232323232322*=-=====-&nnnnnnnnn",
+#"nnnnnnnnnr,,,,>::,12223232322323233232322322==========&nnnnnnnnn",
+#"nnnnnnnnn2,,>,;4904<>1232323323232232323223====--=-=-=&nnnnnnnnn",
+#"nnnnnnnnk:>,:<80009994,>22322323222223<>25>=-=-====-==&nnnnnnnnn",
+#"nnnnnnnnw,,:4009090009092,,33233<>259eufff:=====-===-=&nnnnnnnnn",
+#"nnnnnnnn<:<89000900090009081>59eiffffffgfu=-=====-===-&nnnnnnnnn",
+#"nnnnnnng;59000090009000900098rffffgffffff5==-=-===-===&nnnnnnnnn",
+#"nnnnnnnt9000909090909090909097pffffffffff;=====-=====-&nnnnnnnnn",
+#"nnnnnnnu90900000000000000000007ffggfffgft*-=-===-=-===&nnnnnnnnn",
+#"nnnnnnnu000000000000000000000000ffffffff4===-===-=-===&nnnnnnnnn",
+#"nnnnnnnu909090900909090909090908yfffgfff=-=====-====-=&nnnnnnnnn",
+#"nnnnnnnu0009000990009000900090907afggffe==-=-=-===-===&nnnnnnnnn",
+#"nnnnnnnu90009000000900090009000008fffff3=========-==-=5nnnnnnnnn",
+#"nnnnnnnu09000909909000909090900009wfffd=-===-=-=-===-=pnnnnnnnnn",
+#"nnnnnnnu009000000000090000000009097iff0====-=======-==bnnnnnnnnn",
+#"nnnnnnnu0000090000900000009090900907df1=-=-===-=-=-==7nnnnnnnnnn",
+#"nnnnnnnu90900090090009090900000000099s*======-=======dnnnnnnnnnn",
+#"nnnnnnnu090900099000909090000090000081======-====-=-;nnnnnnnnnnn",
+#"nnnnnnnu00009000000900000009090009099:=-=-=-===-====9nnnnnnnnnnn",
+#"nnnnnnni09900909909000909090000090000>==-===-=-==-=*gnnnnnnnnnnn",
+#"nnnnnnnn00000000000009000000090900090:-====-=======>nnnnnnnnnnnn",
+#"nnnnnnnnz8900000000090909000909000900>=-==-===-====wnnnnnnnnnnnn",
+#"nnnnnnnnns990909090900000009000009009:===-===-==-=*knnnnnnnnnnnn",
+#"nnnnnnnnnne09000900000909090009000000:=-==========<nnnnnnnnnnnnn",
+#"nnnnnnnnnnb80009000909000000090009090>===-=-=-=--=rnnnnnnnnnnnnn",
+#"nnnnnnnnnnnk7900900000900000900000009:-==========*xnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnp990000909000909000990900>==-=-=-=-==8nnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnw00909000009000909000090>-====-===-4nnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnc80000009090009000090009:==-===-==2bnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnng6900000000090009009000>===-==-=1vnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnny000909090900090000903$%===-==,cnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnn9990900000000000098;####====:xnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnbsw500090909090903$#$###@&=:lnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnncp95009090998-##$###$#+&hnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnncu9700003####@%>6esznnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnlt76*%>6esxnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnhxnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+#};
+#'''
+ 
+#    def __getstate__(self):
+#        '''When saving the document this object gets stored using Python's json module.\
+#                Since we have some un-serializable parts here -- the Coin stuff -- we must define this method\
+#                to return a tuple of all serializable objects or None.'''
+#        return None
+ 
+#    def __setstate__(self,state):
+#        '''When restoring the serialized object from document we have the chance to set some internals here.\
+#                Since no data were serialized nothing needs to be done here.'''
+#        return None
+
+
+
+############
+#if __name__ == "__main__":
+#    FreeCAD.Console.PrintMessage("Please run "+BASENAME+".FCMacro rather than this file.\n")
+############
+
+#CODE_ENDS_HERE
+
+
+def getBody(feature):
+    doc = FreeCAD.ActiveDocument
+    bodies = [obj for obj in doc.Objects if obj.TypeId == "PartDesign::Body"]
+    for bod in bodies:
+        if feature in bod.Group:
+            return bod
+    return None
+
+def getPreviousFeature(fromBody, feature):
+    if fromBody.Tip:
+        return fromBody.Tip
+    solids = [ii for ii in fromBody.Group if hasattr(ii,"Shape") and len(ii.Shape.Solids) >= 1 and ii.isDerivedFrom("PartDesign::Feature")]
+    if len(solids) == 0:
+        return None
+    elif len(solids) == 1:
+        return solids[0] #no need for dialog
+    items = [ss.Name + " ("+ss.Label+")" for ss in solids]
+    default = len(items)-1
+    window = FreeCADGui.getMainWindow()
+    item,ok = QtGui.QInputDialog.getItem(window,"Choose previous solid feature","Select previous solid object\n", items, default, False)
+    if ok:
+        return solids[items.index(item)]
+
+def makeObject(BV):
+    doc = FreeCAD.ActiveDocument
+    body=None
+    selobjs = FreeCADGui.Selection.getSelectionEx()
+    if doc:
+        doc.openTransaction("Create Bevel"+"s" if len(selobjs) > 1 else "")
+
+        if selobjs:
+            for selobj in selobjs:
+                body = getBody(selobj.Object)
+                if body:
+                    prevSol = getPreviousFeature(body, selobj.Object)
+                if body and selobj.Object in body.Group:
+                    bevel = body.newObject("PartDesign::FeatureAdditivePython","Bevel")
+                else:
+                    bevel = doc.addObject("Part::FeaturePython","Bevel")
+                BV.Bevel(bevel)
+                BV.BevelVP(bevel.ViewObject)
+                if body:
+                    if prevSol:
+                        bevel.PreviousSolid = prevSol
+                if selobj.HasSubObjects:
+                    bevel.Vertices = (selobj.Object,selobj.SubElementNames)
+                else:
+                    bevel.Vertices = (selobj.Object, "")
+                    bevel.UseAllVertices = True
+                pass
+        else:
+            bevel = doc.addObject("Part::FeaturePython","Bevel")
+            BV.Bevel(bevel)
+            BV.BevelVP(bevel.ViewObject)
+        doc.commitTransaction()
+
+BASENAME = "bevel"
+
+
+
+def writeFile():
+    with open(py_file,"w") as outfile:
+        for line in code.splitlines():
+            if "#CODE_ENDS_HERE" in line:
+                break
+            if line.startswith('#'):
+                if line == "# -*- coding: utf-8 -*-":
+                    line = "#" + line
+                outfile.write(line[1:]+"\n") #skip first character (#)
+
+
+
+############
+#if __name__ == "__main__":
+#    makeObject(None)
+#    raise Exception("quick exit for testing/debugging")
+############
+
+if __name__ == "__main__":
+    import os
+    fin = open(__file__, 'r')
+    code = fin.read()
+    fin.close()
+    version = code.splitlines()[1][16:]
+    real_path = os.path.realpath(__file__)
+    dir_path = os.path.dirname(real_path)
+    py_file = real_path.replace(".FCMacro",".py")
+    bHasFile = os.path.exists(py_file)
+    noImport = False #user elects not to save import file
+
+    if not bHasFile:
+        from PySide import QtCore,QtGui
+        window = QtGui.QApplication.activeWindow()
+        items = ["Yes, go ahead and create the file.", "No, do not create the file.","Cancel"]
+        caption = "In order for "+BASENAME+" objects to be parametric after saving and reloading file\n\
+we need to create another file on this computer.  File to be created will be: \n\n"+py_file+"\n\n\
+This makes it available to the system upon restarting FreeCAD and loading documents containing the \n\
+"+BASENAME+" feature python objects.  May we proceed?\n\n"
+        item,ok = QtGui.QInputDialog.getItem(window,"One time installation",caption,items)
+        if ok and item == items[0]:
+            writeFile()
+            QtGui.QMessageBox.information(window,"Success","File successfully created.  Please note: if you uninstall "+BASENAME+" macro you need to manually remove this file, too.\n")
+        else:
+            new_lines = []
+            for line in code.splitlines():
+                if line.startswith('#'):
+                    if "CODE_ENDS_HERE" in line:
+                        break
+                    if line == "# -*- coding: utf-8 -*-":
+                        new_lines.append(line+"\n")
+                        continue
+                    new_lines.append(line[1:]+"\n")
+            code = "".join(new_lines)
+
+            #credit to Mila Nautikus for his answer to a question on stackoverflow, which I modified here
+            #in this example the filename is bevel.py
+            #https://stackoverflow.com/questions/5362771/how-to-load-a-module-from-code-in-a-string
+
+            ##########
+            import sys, importlib
+            my_name = 'bevel' #filename = bevel.py, so this must be 'bevel'
+            my_spec = importlib.util.spec_from_loader(my_name, loader=None)
+
+            bevel = importlib.util.module_from_spec(my_spec)
+
+            exec(code, bevel.__dict__)
+            sys.modules['bevel'] = bevel
+            makeObject(bevel)
+            noImport = True
+
+    if not noImport: #don't never use no double negatives
+
+        import bevel as BV
+        if BV.__version__ != __version__:
+            writeFile()
+            from PySide import QtCore,QtGui
+            window = QtGui.QApplication.activeWindow()
+            QtGui.QMessageBox.information(window,"Version upated",BASENAME+".py has been updated.  You must restart FreeCAD for the new changes to take effect.")
+        else:
+            makeObject(BV)
