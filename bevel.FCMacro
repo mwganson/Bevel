@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.09.30"
-#__version__ = "0.2021.09.30"
+__version__ = "0.2021.10.01"
+#__version__ = "0.2021.10.01"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -358,7 +358,13 @@ def makeObject(BV):
                     if prevSol:
                         bevel.PreviousSolid = prevSol
                 if selobj.HasSubObjects:
-                    bevel.Vertices = (selobj.Object,selobj.SubElementNames)
+                    verts = [name for name in selobj.SubElementNames if not "Edge" in name and not "Face" in name]
+                    if verts:
+                        bevel.Vertices = (selobj.Object,verts)
+                    else:
+                        FreeCAD.Console.PrintWarning("No vertices among selected subobjects, using all vertices.\n")
+                        bevel.Vertices = (selobj.Object, "")
+                        bevel.UseAllVertices = True
                 else:
                     bevel.Vertices = (selobj.Object, "")
                     bevel.UseAllVertices = True
