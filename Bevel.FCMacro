@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.10.01.rev2"
-#__version__ = "0.2021.10.01.rev2"
+__version__ = "0.2021.10.05"
+#__version__ = "0.2021.10.05"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -11,7 +11,6 @@ __version__ = "0.2021.10.01.rev2"
 
 #class Bevel:
 #    def __init__(self,obj):
-#        obj.addExtension("Part::AttachExtensionPython")
 #        obj.addProperty("App::PropertyLength","Length","Bevel","distance from vertex to point along edge to be removed").Length = 1
 #        obj.addProperty("App::PropertyLinkSub","Vertices","Bevel","Selected vertices to be beveled")
 #        obj.addProperty("App::PropertyString", "Version", "Bevel", "version this object was created with").Version = __version__
@@ -20,10 +19,8 @@ __version__ = "0.2021.10.01.rev2"
 #            obj.addProperty("App::PropertyBool","Refine", "Bevel", "refine feature").Refine = False
 #        obj.addProperty("App::PropertyBool","FilletEdges","Bevel", "whether to fillet the edges created with the bevel").FilletEdges = False
 #        obj.addProperty("App::PropertyFloatConstraint", "FilletRadius","Bevel","radius of fillets in mm").FilletRadius = (.1,0.001,10e17,.1)
-#        obj.addProperty("Part::PropertyPartShape","AddSubShape","Base","Used for pattern features")
-#        obj.addProperty("App::PropertyLink","PreviousSolid","Bevel","previous tip in the part design body to fuse this object with")
 #        obj.addProperty("App::PropertyBool","ClaimChildren","Bevel","whether to claim children in the tree").ClaimChildren = True
-#        obj.setEditorMode("AddSubShape",2) #hidden
+
 #        obj.Proxy = self
 
 #    def execute(self,fp):
@@ -82,12 +79,12 @@ __version__ = "0.2021.10.01.rev2"
 #            common = self.findCommonEdges(shape, fusion)
 #            if common:
 #                shape = shape.makeFillet(fp.FilletRadius, common)
-#        if fp.PreviousSolid and not shape.isNull():
-#            fp.AddSubShape = shape.common(fp.PreviousSolid.Shape)
-#            fp.Shape = shape
-#        else:
-#            fp.Shape = shape if shape else Part.Shape()
-#            fp.AddSubShape = shape
+#        if hasattr(fp,"BaseFeature") and hasattr(fp,"AddSubShape"):
+#            if fp.BaseFeature and not shape.isNull():
+#                fp.AddSubShape = shape.common(fp.BaseFeature.Shape)
+#            else:
+#                fp.AddSubShape = shape
+#        fp.Shape = shape if shape else Part.Shape()
 #        object.ViewObject.Visibility = False if shape else True
 
 
@@ -321,21 +318,6 @@ def getBody(feature):
             return bod
     return None
 
-def getPreviousFeature(fromBody, feature):
-    if fromBody.Tip:
-        return fromBody.Tip
-    solids = [ii for ii in fromBody.Group if hasattr(ii,"Shape") and len(ii.Shape.Solids) >= 1 and ii.isDerivedFrom("PartDesign::Feature")]
-    if len(solids) == 0:
-        return None
-    elif len(solids) == 1:
-        return solids[0] #no need for dialog
-    items = [ss.Name + " ("+ss.Label+")" for ss in solids]
-    default = len(items)-1
-    window = FreeCADGui.getMainWindow()
-    item,ok = QtGui.QInputDialog.getItem(window,"Choose previous solid feature","Select previous solid object\n", items, default, False)
-    if ok:
-        return solids[items.index(item)]
-
 def makeObject(BV):
     doc = FreeCAD.ActiveDocument
     body=None
@@ -347,16 +329,13 @@ def makeObject(BV):
             for selobj in selobjs:
                 body = getBody(selobj.Object)
                 if body:
-                    prevSol = getPreviousFeature(body, selobj.Object)
-                if body and selobj.Object in body.Group:
+
                     bevel = body.newObject("PartDesign::FeatureAdditivePython","Bevel")
                 else:
                     bevel = doc.addObject("Part::FeaturePython","Bevel")
                 BV.Bevel(bevel)
                 BV.BevelVP(bevel.ViewObject)
-                if body:
-                    if prevSol:
-                        bevel.PreviousSolid = prevSol
+
                 if selobj.HasSubObjects:
                     verts = [name for name in selobj.SubElementNames if not "Edge" in name and not "Face" in name]
                     if verts:
@@ -449,10 +428,26 @@ This makes it available to the system upon restarting FreeCAD and loading docume
     if not noImport: #don't never use no double negatives
 
         import bevel as BV
+        import addonmanager_utilities as utils
+
         if BV.__version__ != __version__:
             writeFile()
             from PySide import QtCore,QtGui
             window = QtGui.QApplication.activeWindow()
-            QtGui.QMessageBox.information(window,"Version upated",BASENAME+".py has been updated.  You must restart FreeCAD for the new changes to take effect.")
+            mbox = QtGui.QMessageBox()
+            mbox.setWindowTitle(BASENAME+" updated")
+
+            mbox.setText(BASENAME+".py has been updated to version "+__version__+". \
+You must restart FreeCAD for the new changes to take effect and to use the macro.")
+            mbox.setIcon(mbox.Warning)
+            mbox.setStandardButtons(mbox.Ok | mbox.Cancel)
+            mbox.setDefaultButton(mbox.Cancel)
+            okBtn = mbox.button(QtGui.QMessageBox.StandardButton.Ok)
+            cancelBtn = mbox.button(QtGui.QMessageBox.StandardButton.Cancel)
+            okBtn.setText("Restart now")
+            cancelBtn.setText("Restart later")
+            ret = mbox.exec_()
+            if ret == mbox.Ok:
+                QtCore.QTimer.singleShot(1000, utils.restart_freecad)
         else:
             makeObject(BV)
