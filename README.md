@@ -27,9 +27,6 @@ The radius of the fillets, if Fillet Edges property is set to true.  Values are 
 ## Length
 This is the distance, in mm, from the vertex to bevel as measured along the edge.  Default is 1 mm.  Note: While chamfers in FreeCAD tend to be rather finicky, like fillets, the algorithm used to create the bevels is quite robust.  Where a chamfer will fail if adjacent chamfers converge, there is no such issue with the bevels created by this macro.
 
-## Previous Solid
-When beveling a Part Design feature the Bevel object puts itself into the Part Design body and behaves just like any other Part Design feature.  It is necessary for Part Design features, if they are to work properly, to be aware of the previous solid in the body's feature group because must perform a boolean operation (typically fusion, cut, or common) with the previous solid in order keep the train of features connected from the first object all the way to the tip object.  In c++ there are functions to get the previous feature, but I don't believe these functions have been exposed to python.  It might be necessary at times, therefore, for the user to intervene and set the Previous Solid property in order for the feature to function properly.  If the Previous Feature property is not set automatically it can be set manually by clicking the ... button to bring up the property editor.  Select in the editor the previous feature in the body's feature group, the one just before the feature being beveled is the one to select.  You may occasionally be asked to select this during Bevel object creation.
-
 ## Refine
 Boolean property, default = false.  Setting this to true will attempt to remove any extra, unnecessary edges the object might have.  Note: internally, the feature/object being beveled is refined prior to doing the bevel.  This reduces risk of failure.  The object itself isn't refined, but the shape is copied and refined before the bevel is applied, then that beveled copy is the shape for the Bevel object.
 
@@ -45,8 +42,10 @@ This is the base object and, optionally, the individual vertices to be beveled. 
 <img src="bevel_scr2.png" alt="screenshot 2">
 
 ## Changelog
-
-** v0.2021.09.30 -- initial upload<br/>
+** v0.2021.10.05 -- remove some unnecessary properties already in base class
+** don't ask where to place in tree, but just add to end of the body
 ** v0.2021.10.01 -- handle case where user has selected non-vertex subobjects
 ** fix bug related to lowercase / uppercase filename
+** v0.2021.09.30 -- initial upload<br/>
+
 
