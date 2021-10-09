@@ -49,13 +49,13 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
-** v0.2021.10.09 -- change icon to more colorized version
-** do not claim children by default in part design
-** add simple vertex editor
-** v0.2021.10.05 -- remove some unnecessary properties already in base class
-** don't ask where to place in tree, but just add to end of the body
-** v0.2021.10.01 -- handle case where user has selected non-vertex subobjects
-** fix bug related to lowercase / uppercase filename
+** v0.2021.10.09 -- change icon to more colorized version<br/>
+** do not claim children by default in part design <br/>
+** add simple vertex editor <br/>
+** v0.2021.10.05 -- remove some unnecessary properties already in base class <br/>
+** don't ask where to place in tree, but just add to end of the body<br/>
+** v0.2021.10.01 -- handle case where user has selected non-vertex subobjects<br/>
+** fix bug related to lowercase / uppercase filename<br/>
 ** v0.2021.09.30 -- initial upload<br/>
 
 
