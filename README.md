@@ -18,6 +18,9 @@ Bevel objects are parametric, and like just about all parametric objects in Free
 ### Claim Children
 This is a boolean property.  If true (default) the object will claim its children in the tree.  You can toggle this value back and forth from true to false to see the effect of this.  It only affects the heirarchy in the tree view and has no affect on the object itself.
 
+## Edit Vertices
+Boolean variable used to toggle a command action.  Brings up a simple vertex editor with which you can select the vertices to be used in the 3D view.
+
 ## Fillet Edges
 This is a boolean property, default = false.  If true, the edges created by the bevel are also filleted.  Only the edges created by the bevel operation are filleted.  Use a fillet tool to fillet the others, if desired.  Note: OCCT (Open Cascade Technologies), the CAD kernel FreeCAD uses will sometimes fillet additional edges if they are tangent to a selected edge.
 
@@ -31,7 +34,7 @@ This is the distance, in mm, from the vertex to bevel as measured along the edge
 Boolean property, default = false.  Setting this to true will attempt to remove any extra, unnecessary edges the object might have.  Note: internally, the feature/object being beveled is refined prior to doing the bevel.  This reduces risk of failure.  The object itself isn't refined, but the shape is copied and refined before the bevel is applied, then that beveled copy is the shape for the Bevel object.
 
 ## Use All Vertices
-Boolean property, default = false if vertices were selected in the 3D view prior to object creation, else it is true when the whole object is selected from the tree view.  So, if you have many vertices and don't wish to select them all you can just select the entire object to bevel all of the vertices.
+Boolean property, default = false if vertices were selected in the 3D view prior to object creation, else it is true when the whole object is selected from the tree view.  So, if you have many vertices and don't wish to select them all you can just select the entire object to bevel all of the vertices.  Note: this overrides any invdividual vertices selected, so you need to toggle this to false to filter the vertices not listed in the Vertices property.
 
 ## Version
 This is a string property containing the version of the Bevel macro used to create this object.
@@ -40,6 +43,10 @@ This is a string property containing the version of the Bevel macro used to crea
 This is the base object and, optionally, the individual vertices to be beveled.  Do not delete this object or else it will break the Bevel object.  The vertices are added to a list automatically (based on which vertices were selected), but you can edit this using the property editor if you wish later to add/remove vertices.  It's a little bit tricky to do, but not difficult once you figure out the process.  Double click in the editor dialog in the field just to the right of the object name and begin typing in the vertices you desire.  When finished be sure to select again the object before clicking OK.  Otherwise it can be accidentally deselected.
 
 <img src="bevel_scr2.png" alt="screenshot 2">
+
+Alternatively, I have implemented a simple vertex editor with which you can select desired vertices in the 3D view.  Here is a screenshot of it:
+
+<img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
 ** v0.2021.10.09 -- change icon to more colorized version
