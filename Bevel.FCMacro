@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.10.05"
-#__version__ = "0.2021.10.05"
+__version__ = "0.2021.10.09"
+#__version__ = "0.2021.10.09"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
 #__doc__ = "Bevel the selected vertices of an object."
 #__usage__ = '''Select the vertices or the entire object and activate the tool, modify properties as desired'''
 #import Part, FreeCADGui, FreeCAD
+#from PySide import QtGui,QtCore
 #BASENAME = "bevel"
 
 #class Bevel:
@@ -14,15 +15,40 @@ __version__ = "0.2021.10.05"
 #        obj.addProperty("App::PropertyLength","Length","Bevel","distance from vertex to point along edge to be removed").Length = 1
 #        obj.addProperty("App::PropertyLinkSub","Vertices","Bevel","Selected vertices to be beveled")
 #        obj.addProperty("App::PropertyString", "Version", "Bevel", "version this object was created with").Version = __version__
+#        obj.addProperty("App::PropertyBool","EditVertices","Bevel","Trigger, toggle to bring up vertex editor").EditVertices = False
 #        obj.addProperty("App::PropertyBool","UseAllVertices","Bevel","use all vertices of this object").UseAllVertices = False
 #        if not hasattr(obj,"Refine"):
 #            obj.addProperty("App::PropertyBool","Refine", "Bevel", "refine feature").Refine = False
 #        obj.addProperty("App::PropertyBool","FilletEdges","Bevel", "whether to fillet the edges created with the bevel").FilletEdges = False
 #        obj.addProperty("App::PropertyFloatConstraint", "FilletRadius","Bevel","radius of fillets in mm").FilletRadius = (.1,0.001,10e17,.1)
 #        obj.addProperty("App::PropertyBool","ClaimChildren","Bevel","whether to claim children in the tree").ClaimChildren = True
-
+#        self.editingMode = False
+#        self.fpName = obj.Name
 #        obj.Proxy = self
-
+#
+#    def onChanged(self,fp,prop):
+#        if prop == "EditVertices" and fp.EditVertices == True:
+#            t = QtCore.QTimer()
+#            t.singleShot(50, self.editVertices) #avoid warning message about selection changing while committing data
+#            fp.EditVertices = False
+#
+#    def editVertices(self):
+#        fp = FreeCAD.ActiveDocument.getObject(self.fpName)
+#        if not fp.Vertices:
+#            return
+#        object = fp.Vertices[0]
+#        if not object:
+#            return
+#        if not FreeCADGui.Control.activeDialog():
+#            panel = TaskEditLinkSubPanel(fp,"Vertices","Vertex")
+#            FreeCADGui.Control.showDialog(panel)
+#            self.editingMode = True #tells execute() not to hide the linked object
+#            if fp.UseAllVertices:
+#                FreeCAD.Console.PrintWarning("Use All Vertices property is True, which overrides the Vertices property.  You must set it to False in order to use only selected vertices.\n")
+#        else:
+#            self.editingMode=False
+#            FreeCAD.Console.PrintError("Another task dialog is active.  Close that one and try again.\n")
+#
 #    def execute(self,fp):
 #        if not fp.Vertices:
 #            return
@@ -85,7 +111,8 @@ __version__ = "0.2021.10.05"
 #            else:
 #                fp.AddSubShape = shape
 #        fp.Shape = shape if shape else Part.Shape()
-#        object.ViewObject.Visibility = False if shape else True
+#        if not self.editingMode:
+#            object.ViewObject.Visibility = False if shape else True
 
 
 #    def getOtherVertex(self,v0,edge):
@@ -113,6 +140,57 @@ __version__ = "0.2021.10.05"
 #            equals += 1
 #        return True if equals == 2 else False
 
+#class TaskEditLinkSubPanel: #simple editor for App::PropertyLinkSub
+#    def __init__(self, obj, linkSubName, subNames,):
+#        self.obj = obj
+#        self.subNames = subNames
+#        self.linkSubName = linkSubName #entire LinkSub property
+#        self.linkObj = getattr(self.obj,linkSubName)[0]
+#        self.subObjects = getattr(self.obj,linkSubName)[1]
+#        self.form = QtGui.QWidget()
+#        self.label1 = QtGui.QLabel("Select the "+self.subNames+" subobjects to use and click OK.\nThe ones already being utilized have been selected for you.")
+#        layout=QtGui.QHBoxLayout()
+#        layout.addWidget(self.label1)
+#        self.form.setLayout(layout)
+#        self.form.setWindowTitle('Edit '+self.subNames)
+#        self.obj.ViewObject.Visibility = False
+#        self.linkObj.ViewObject.Visibility = True
+#        FreeCADGui.Selection.clearSelection()
+#        for f in self.subObjects:
+#            FreeCADGui.Selection.addSelection(FreeCAD.ActiveDocument.Name,self.linkObj.Name,f)
+#        self.obj.Proxy.editingMode = True
+#
+#    def reject(self):
+#        FreeCADGui.Control.closeDialog()
+#        fp = self.obj
+#        self.linkObj.ViewObject.Visibility = False
+#        fp.ViewObject.Visibility = True
+#        self.obj.Proxy.editingMode = False #self.obj.Proxy is the Bevel class object (self in that class)
+#        FreeCAD.ActiveDocument.recompute()
+#
+#    def accept(self):
+#        FreeCADGui.ActiveDocument.resetEdit()
+#        FreeCADGui.Control.closeDialog()
+#        fp = self.obj
+#        if not fp: #user deleted or closed document perhaps
+#            return
+#        selx = FreeCADGui.Selection.getSelectionEx()
+#        if not selx:
+#            FreeCAD.Console.PrintWarning("Nothing selected, leaving "+self.linkObj.Name+" unmodified.")
+#            return
+#        seNames = [sen for sen in selx[0].SubElementNames if self.subNames in sen]
+#        setattr(self.obj,self.linkSubName,(selx[0].Object,seNames)) #allow user to select diffent object
+#        self.linkObj = selx[0].Object
+#        if hasattr(fp,"_Body") and fp._Body and self.linkObj not in fp._Body.Group:
+#            fp._Body.Group += [self.linkObj]
+#            if not self.linkObj.isDerivedFrom("PartDesign::Feature"):
+#               fp.ClaimChildren = True
+#        self.linkObj.ViewObject.Visibility = False
+#        fp.ViewObject.Visibility = True
+#        if hasattr(fp.Proxy,"editingMode"):
+#            fp.Proxy.editingMode = False
+#        FreeCAD.ActiveDocument.recompute()
+#
 
         
 #class BevelVP:
@@ -165,127 +243,282 @@ __version__ = "0.2021.10.05"
 #                optional and if not defined a default icon is shown.'''
 #        return '''
 #/* XPM */
-#static char *_632870743861[] = {
+#static char *a1ua2_q91uc[] = {
 #/* columns rows colors chars-per-pixel */
-#"64 64 53 1 ",
-#"  c #2A2A2A2A2A2A",
-#". c #2C2C2C2C2C2C",
-#"X c #323232323232",
-#"o c #373737373737",
-#"O c #3A3A3A3A3A3A",
-#"+ c #414141414141",
-#"@ c gray28",
-#"# c #484848484848",
-#"$ c #4C4C4C4C4C4C",
-#"% c #515151515151",
-#"& c gray33",
-#"* c gray35",
-#"= c #5D5D5D5D5D5D",
-#"- c gray38",
-#"; c gray40",
-#": c #686868686868",
-#"> c #6F6F6F6F6F6F",
-#", c #727272727272",
-#"< c #777777777777",
-#"1 c #7B7B7B7B7B7B",
-#"2 c #7E7E7E7E7E7E",
-#"3 c #808080808080",
-#"4 c gray53",
-#"5 c #898989898989",
-#"6 c gray56",
-#"7 c #909090909090",
-#"8 c gray59",
-#"9 c #989898989898",
-#"0 c gray61",
-#"q c #A4A4A4A4A4A4",
-#"w c #A7A7A7A7A7A7",
-#"e c gray66",
-#"r c #AEAEAEAEAEAE",
-#"t c #B2B2B2B2B2B2",
-#"y c gray71",
-#"u c gray72",
-#"i c #BCBCBCBCBCBC",
-#"p c gray76",
-#"a c #C5C5C5C5C5C5",
-#"s c gray79",
-#"d c #CECECECECECE",
-#"f c #D0D0D0D0D0D0",
-#"g c gray84",
-#"h c gainsboro",
-#"j c gray87",
-#"k c #E2E2E2E2E2E2",
-#"l c #E7E7E7E7E7E7",
-#"z c #EAEAEAEAEAEA",
-#"x c #ECECECECECEC",
-#"c c #F3F3F3F3F3F3",
-#"v c #F4F4F4F4F4F4",
-#"b c #F9F9F9F9F9F9",
-#"n c none",
+#"64 64 208 2 ",
+#"   c #772C3F",
+#".  c #743F50",
+#"X  c #644956",
+#"o  c #5B5B77",
+#"O  c #6E5472",
+#"+  c #725674",
+#"@  c #900F17",
+#"#  c #BE0102",
+#"$  c #A60F14",
+#"%  c #B51414",
+#"&  c #B81C22",
+#"*  c #8D2635",
+#"=  c #B7252D",
+#"-  c #BE2F38",
+#";  c #AE323B",
+#":  c #B53239",
+#">  c #D40B12",
+#",  c #D71318",
+#"<  c #F90608",
+#"1  c #F00E14",
+#"2  c #EB1217",
+#"3  c #EF121A",
+#"4  c #EB181E",
+#"5  c #F31217",
+#"6  c #F2151C",
+#"7  c #F7161C",
+#"8  c #FA161C",
+#"9  c #CB1B21",
+#"0  c #DC1C23",
+#"q  c #E31C24",
+#"w  c #ED1C24",
+#"e  c #F11A21",
+#"r  c #D7262D",
+#"t  c #CF2B32",
+#"y  c #CB2C36",
+#"u  c #DB2932",
+#"i  c #E3212B",
+#"p  c #883B4B",
+#"a  c #98394B",
+#"s  c #BB2F41",
+#"d  c #AB3B4B",
+#"f  c #CB3D49",
+#"g  c #83425A",
+#"h  c #9E4758",
+#"j  c #BD404A",
+#"k  c #AE4A51",
+#"l  c #AD525E",
+#"z  c #BC5159",
+#"x  c #A45B69",
+#"c  c #B75E68",
+#"v  c #896379",
+#"b  c #BB6567",
+#"n  c #BD787A",
+#"m  c #D5464C",
+#"M  c #D44D53",
+#"N  c #CC5458",
+#"B  c #D05158",
+#"V  c #E74B51",
+#"C  c #E74C53",
+#"Z  c #F4555D",
+#"A  c #FA5358",
+#"S  c #FB545C",
+#"D  c #DA5C60",
+#"F  c #F35B63",
+#"G  c #FB5B62",
+#"H  c #C06F72",
+#"J  c #DB6F72",
+#"K  c #DC7276",
+#"L  c #E56766",
+#"P  c #3E5C8A",
+#"I  c #4E648D",
+#"U  c #5A6B95",
+#"Y  c #4D729D",
+#"T  c #597195",
+#"R  c #5B759C",
+#"E  c #6E6E8A",
+#"W  c #7C718B",
+#"Q  c #6C7893",
+#"!  c #667C9B",
+#"~  c #6B7D9D",
+#"^  c #727A98",
+#"/  c #4A6FA4",
+#"(  c #4D74A8",
+#")  c #5C78A2",
+#"_  c #527BB3",
+#"`  c #577EB9",
+#"'  c #587FBA",
+#"]  c #846F80",
+#"[  c #9A7B8D",
+#"{  c #A87286",
+#"}  c #6C819E",
+#"|  c #4E85BA",
+#" . c #5383BB",
+#".. c #5D83BB",
+#"X. c #5D84BB",
+#"o. c #6E84A3",
+#"O. c #6888AA",
+#"+. c #6E88AE",
+#"@. c #7588A5",
+#"#. c #7B8BA5",
+#"$. c #7389A9",
+#"%. c #7B90AE",
+#"&. c #6084B9",
+#"*. c #698AB9",
+#"=. c #738FB2",
+#"-. c #728EB9",
+#";. c #6390B4",
+#":. c #7991B4",
+#">. c #7491BB",
+#",. c #7A95BC",
+#"<. c #4C8AC2",
+#"1. c #568EC7",
+#"2. c #5C8BC3",
+#"3. c #5490CB",
+#"4. c #6B9CC2",
+#"5. c #7499C1",
+#"6. c #7E9BC4",
+#"7. c #7AA1CB",
+#"8. c #7DA7D2",
+#"9. c #79AAD5",
+#"0. c #7EAAD5",
+#"q. c #89899E",
+#"w. c #94879C",
+#"e. c #A1889B",
+#"r. c #8895AA",
+#"t. c #9E95AD",
+#"y. c #8095B2",
+#"u. c #8C9BB5",
+#"i. c #8B9EBA",
+#"p. c #9B9EB8",
+#"a. c #A59AAE",
+#"s. c #96A0AE",
+#"d. c #8DA1BC",
+#"f. c #92A2BC",
+#"g. c #9AA6B8",
+#"h. c #A4ADBA",
+#"j. c #A9B1BF",
+#"k. c #B1B6BE",
+#"l. c #B5B8BF",
+#"z. c #C68A8B",
+#"x. c #DB8689",
+#"c. c #C49EA0",
+#"v. c #DA9FA1",
+#"b. c #C4A6A7",
+#"n. c #D0AEAE",
+#"m. c #D2BABA",
+#"M. c #E0A1A3",
+#"N. c #E8B1B1",
+#"B. c #839FC7",
+#"V. c #829FC8",
+#"C. c #84A1CA",
+#"Z. c #94A5C1",
+#"A. c #97A9C4",
+#"S. c #96AAC5",
+#"D. c #9AAAC2",
+#"F. c #9BAECC",
+#"G. c #97B2CF",
+#"H. c #82A6D1",
+#"J. c #84A9D3",
+#"K. c #84AED9",
+#"L. c #8FB4D0",
+#"P. c #9EB2D1",
+#"I. c #9BBCDA",
+#"U. c #A2AEC2",
+#"Y. c #A3B1C6",
+#"T. c #A5B2CA",
+#"R. c #AEB9CA",
+#"E. c #B4B9C2",
+#"W. c #B4BECC",
+#"Q. c #A2B5D4",
+#"!. c #A5B9D6",
+#"~. c #A7BAD8",
+#"^. c #A8BCDA",
+#"/. c #BAC0CA",
+#"(. c #BCC3CC",
+#"). c #ACC0DE",
+#"_. c #B8C3D3",
+#"`. c #BBC4D1",
+#"'. c #9BC4E4",
+#"]. c #A5C6E5",
+#"[. c #ABC4E3",
+#"{. c #A8CAEA",
+#"}. c #C3C6CB",
+#"|. c #CCCCCF",
+#" X c #D2CBCB",
+#".X c #DDCFCF",
+#"XX c #C3CAD3",
+#"oX c #CDCCD1",
+#"OX c #C7CED8",
+#"+X c #CDD0D7",
+#"@X c #CCD2DC",
+#"#X c #D4D4D5",
+#"$X c #DAD7D7",
+#"%X c #D2D6DC",
+#"&X c #DDDCDC",
+#"*X c #D8DBE1",
+#"=X c #DEE0E4",
+#"-X c #DEECEB",
+#";X c #E2E3E3",
+#":X c #E5E8EA",
+#">X c #EBECEC",
+#",X c #F4EEEC",
+#"<X c #F3F1EE",
+#"1X c #EAF4F3",
+#"2X c #F3F3F2",
+#"3X c #F8F6F4",
+#"4X c #F3FCFC",
+#"5X c none",
 #/* pixels */
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnhbnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnbkpr93,<<9annnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnbhpr83,<222322222<whnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnn0,12323232323223232312eknnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnw22232323232322323232322<4txnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnt222323232323233232323232223>fnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnu22322323232323223232323232322-cnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnna123223232323232332323232323232:,nnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnd13223323232323232232323232323232oennnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnns122323232323232323323232323232323=Xhnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnng22232323232323232322323232323232322.%bnnnnnnnnnnnnn",
-#"nnnnnnnnnnnn8>3232323232232323232323232323232323& 4nnnnnnnnnnnnn",
-#"nnnnnnnnnnnb>-22232323233232323232323232323232322 .unnnnnnnnnnnn",
-#"nnnnnnnnnnnp>:<2323232322323232323232323232323232# Olnnnnnnnnnnn",
-#"nnnnnnnnnnn7,>;223232323323232323232323232323232<&O =nnnnnnnnnnn",
-#"nnnnnnnnnnc:,,;13232323223232323232323232323232<*==$.9nnnnnnnnnn",
-#"nnnnnnnnnnu,>>,:2323232332323232323232323232221*===-*Odnnnnnnnnn",
-#"nnnnnnnnnn4>,,,-233232322323232323232323232322==-=-====nnnnnnnnn",
-#"nnnnnnnnnz:,,>,,>2232323323232323232323232322*=-=====-&nnnnnnnnn",
-#"nnnnnnnnnr,,,,>::,12223232322323233232322322==========&nnnnnnnnn",
-#"nnnnnnnnn2,,>,;4904<>1232323323232232323223====--=-=-=&nnnnnnnnn",
-#"nnnnnnnnk:>,:<80009994,>22322323222223<>25>=-=-====-==&nnnnnnnnn",
-#"nnnnnnnnw,,:4009090009092,,33233<>259eufff:=====-===-=&nnnnnnnnn",
-#"nnnnnnnn<:<89000900090009081>59eiffffffgfu=-=====-===-&nnnnnnnnn",
-#"nnnnnnng;59000090009000900098rffffgffffff5==-=-===-===&nnnnnnnnn",
-#"nnnnnnnt9000909090909090909097pffffffffff;=====-=====-&nnnnnnnnn",
-#"nnnnnnnu90900000000000000000007ffggfffgft*-=-===-=-===&nnnnnnnnn",
-#"nnnnnnnu000000000000000000000000ffffffff4===-===-=-===&nnnnnnnnn",
-#"nnnnnnnu909090900909090909090908yfffgfff=-=====-====-=&nnnnnnnnn",
-#"nnnnnnnu0009000990009000900090907afggffe==-=-=-===-===&nnnnnnnnn",
-#"nnnnnnnu90009000000900090009000008fffff3=========-==-=5nnnnnnnnn",
-#"nnnnnnnu09000909909000909090900009wfffd=-===-=-=-===-=pnnnnnnnnn",
-#"nnnnnnnu009000000000090000000009097iff0====-=======-==bnnnnnnnnn",
-#"nnnnnnnu0000090000900000009090900907df1=-=-===-=-=-==7nnnnnnnnnn",
-#"nnnnnnnu90900090090009090900000000099s*======-=======dnnnnnnnnnn",
-#"nnnnnnnu090900099000909090000090000081======-====-=-;nnnnnnnnnnn",
-#"nnnnnnnu00009000000900000009090009099:=-=-=-===-====9nnnnnnnnnnn",
-#"nnnnnnni09900909909000909090000090000>==-===-=-==-=*gnnnnnnnnnnn",
-#"nnnnnnnn00000000000009000000090900090:-====-=======>nnnnnnnnnnnn",
-#"nnnnnnnnz8900000000090909000909000900>=-==-===-====wnnnnnnnnnnnn",
-#"nnnnnnnnns990909090900000009000009009:===-===-==-=*knnnnnnnnnnnn",
-#"nnnnnnnnnne09000900000909090009000000:=-==========<nnnnnnnnnnnnn",
-#"nnnnnnnnnnb80009000909000000090009090>===-=-=-=--=rnnnnnnnnnnnnn",
-#"nnnnnnnnnnnk7900900000900000900000009:-==========*xnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnp990000909000909000990900>==-=-=-=-==8nnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnw00909000009000909000090>-====-===-4nnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnc80000009090009000090009:==-===-==2bnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnng6900000000090009009000>===-==-=1vnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnny000909090900090000903$%===-==,cnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnn9990900000000000098;####====:xnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnbsw500090909090903$#$###@&=:lnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnncp95009090998-##$###$#+&hnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnncu9700003####@%>6esznnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnlt76*%>6esxnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnhxnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-#"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X<X&X%XXX#X2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X:X=X%XOX`.W.R.Y.A.i.Z.R.`.%X3X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X>X%X@XXX`.R.Y.f.i.:.+.,.6.6.V.V.>.%.D.`.OX*X2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X2XR.u.y.$.+.6.6.V.V.C.C.V.V.V.V.V.C.V.V.-.%.g.`.@X;X2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X2XW.-.V.V.C.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.V.V.>.$.g.XX*X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X3X(.-.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.B.B.V.V.V.V.V.C.6.>.! $X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X4X}.-.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.B.V.V.V.V.V.V.V.V.V.H.X ,X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X|.*.V.V.V.V.V.V.V.V.V.V.B.V.V.V.V.V.V.V.B.V.V.V.V.V.C.V.V.V.C.~ k 5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X|.-.V.V.V.V.V.B.V.V.V.V.V.B.V.V.V.V.V.V.V.B.B.V.V.B.V.V.V.V.V.C.K.@ b.5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X}.,.V.V.V.V.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.V.V.B.B.V.V.V.V.V.V.V.V.C.E % ;X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X X,.6.C.V.V.V.V.V.V.V.V.V.V.B.B.B.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.8.@ ; 5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5Xz.^ C.V.B.V.V.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.V.V.V.B.V.V.V.V.V.V.B.B.B.J.+ # b 5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X4XM x 8.V.V.V.V.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.V.V.B.B.V.V.V.V.B.V.B.B.B.C.5.$ % b.5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X XV C =.C.V.V.V.V.B.B.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.V.V.V.V.V.B.B.V.B.B.B.K.. # : $X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5Xn S S v H.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.B.B.V.V.V.V.V.B.V.V.V.C.=.R g $ b 3X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X>XM F F B 5.C.B.V.V.V.V.V.V.V.B.B.B.B.B.B.V.V.V.V.B.V.V.V.V.V.V.B.B.V.V.C.=.) X. .O * z.5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5Xm.A F F S W C.B.V.V.V.V.V.V.V.B.B.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.B.B.V.C.,.) ..&.&.2.U   oX5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5XH Z F F G z 7.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.C.6.R X.&.&.&.&.&. .o 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X1Xm F F F F A o.V.V.C.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.V.R X.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5Xb.S F F F F Z ] o.6.V.V.V.V.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.V.V.C.C.C.T &.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5Xb F F F S z d.[.[.u.#.~ 6.C.C.V.C.C.V.V.V.V.C.C.V.V.V.V.V.C.C.H.0.J.T &.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X-XV F G V [ ^.^.^.^.^.^.^.u.#.~ ,.C.C.V.V.V.V.C.C.H.H.0.0.9.;.^ v h . 2.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5Xc.S A c D.!.~.^.~.~.^.^.^.!.Q.!.f.%.o.,.C.0.0.4.o.W v h ; 9 i i q 6 o 2.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5XN M e.T.!.^.~.~.~.~.~.~.~.^.^.^.Q.Q.Q.d.^ d : y u u i q q 4 e e e ,  .&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X Xx a.P.^.^.~.~.~.~.~.~.~.~.~.~.~.^.^.^.Q.G.; 1 4 e e e w e w w w 8 a 1.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.p.^.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.[.t.0 e w w w w w w w w 5 I 2.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5XE.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.].{ 2 w w w w w w w e 9 | &.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.I.z 5 w w w w w w 7 p 1.&.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).A.y 6 w w w w w 5 U X.&.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.[.w.q e w w w e 9 <.&.&.&.&.&.&.&.&.&.&.&.&.&.I 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.{.x 3 w w w 7 g 1.&.&.&.&.&.&.&.&.&.&.&.&...#.5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.'.- 6 w w 5 Y &.&.&.&.&.&.&.&.&.&.&.&.&._ }.5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.L., e e & 3.&.&.&.&.&.&.&.&.&.&.&.&.&.I 5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.[.q.< 8 O 2.&.&.&.&.&.&.&.&.&.&.&.&...r.5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.].x < ( &.&.&.&.&.&.&.&.&.&.&.&.&.( #X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.!.p 2.&.&.&.&.&.&.&.&.&.&.&.&...T 4X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xk.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.[.Q X.&.&.&.&.&.&.&.&.&.&.&.&...s.5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X|.F.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).o...&.&.&.&.&.&.&.&.&.&.&.&./ ;X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X2Xj.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&.&...! 5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X&XD.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&.&.` h.5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5XXXF.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&.&./ ;X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5XE.P.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&...! 5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X2XU.Q.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&._ k.5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X&XA.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.../ ,X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5XE.Q.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.....r.5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5Xs.~.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.' @.5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5Xu.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.` o.5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X&XZ.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.^.[.O.2.&.&.&.&.&.&.' o.2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X4X/.P.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.{.w.= o 1.&.&.&.&.' o.:X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X2Xj.u.~.~.^.~.~.~.~.~.~.~.~.~.^.~.^.[.A.x u 4 r a _ 2.&.' o.=X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X:X*X(.U.i.~.~.^.~.~.~.~.~.~.~.).'.[ f 0 6 w 7 q s +  .O.%X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X:X*X@X/.Y.f.Q.~.^.~.~.^.].p.c t 1 6 3 3 > , r l #.OX5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X;X%XXX_.T.Z.Q.^.F.{ j > 0 u m D K x.x.M.N. X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X;X+X(._.T.t.b L J x.v.m..X:X4X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X;X(.n.$X1X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X"
 #};
 #'''
  
@@ -329,13 +562,13 @@ def makeObject(BV):
             for selobj in selobjs:
                 body = getBody(selobj.Object)
                 if body:
-
                     bevel = body.newObject("PartDesign::FeatureAdditivePython","Bevel")
                 else:
                     bevel = doc.addObject("Part::FeaturePython","Bevel")
                 BV.Bevel(bevel)
                 BV.BevelVP(bevel.ViewObject)
-
+                if body:
+                    bevel.ClaimChildren = False #do not claim children in Part Design to preserve the linear tree
                 if selobj.HasSubObjects:
                     verts = [name for name in selobj.SubElementNames if not "Edge" in name and not "Face" in name]
                     if verts:
