@@ -7,7 +7,7 @@ FreeCAD macro that creates a parametric beveled object.  Selected vertices on th
 The parametric Bevel object will embed itself within the Part Design body if the object containing the vertices to be beveled is a Part Design feature.  It can be patterned (arrayed) with the Part Design feature patterns, such as polar patterns, linear patterns, mirror patterns, etc.  It behaves very much like other parametric dressup features in FreeCAD, such as fillets and chamfers.
 
 ## Toolbar Icon
-<a href="bevel.svg"> Download</a> the icon: <img src ="bevel.svg" alt="icon">
+<a href="Bevel.svg"> Download</a> the icon: <img src ="Bevel.svg" alt="icon">
 
 ## Installation
 Now available in the addon manager.  Tools menu -> Addon Manager -> Macros tab -> Bevel macro.  On first run it will ask to create another file, bevel.py, which will be placed into the same folder as bevel.FCMacro.  The bevel.py file is not to be run directly, but rather it is imported by bevel.FCMacro, which is the file you need to run to execute the macro.  The reason we need 2 files is so upon saving a Bevel object to a file, and later restarting FreeCAD and opening that file, in order for the Bevel object to maintain its parmetric nature the import file is necessary.  The file creation is a one-time installation and does not need to be created again unless the macro is updated, in which case the bevel.py file is automatically updated and the user is advised to restart FreeCAD to take advantage of the new functionality.  Note: since the addon manager is unaware of and does not track the extra bevel.py file it will not get removed when the macro is uninstalled.  You must manually delete the file if you elect to uninstall.  This can easily be done from within the Macros dialog in FreeCAD.  If you elect not to create the file the macro will still work.  It just won't be parametric if you restart FreeCAD and load a file containing a saved object.  It is recommended to create the file.
@@ -42,6 +42,9 @@ This is the base object and, optionally, the individual vertices to be beveled. 
 <img src="bevel_scr2.png" alt="screenshot 2">
 
 ## Changelog
+** v0.2021.10.09 -- change icon to more colorized version
+** do not claim children by default in part design
+** add simple vertex editor
 ** v0.2021.10.05 -- remove some unnecessary properties already in base class
 ** don't ask where to place in tree, but just add to end of the body
 ** v0.2021.10.01 -- handle case where user has selected non-vertex subobjects
