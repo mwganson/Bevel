@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.10.10.rev3"
-#__version__ = "0.2021.10.10.rev3"
+__version__ = "0.2021.10.10.rev4"
+#__version__ = "0.2021.10.10.rev4"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -166,6 +166,7 @@ __version__ = "0.2021.10.10.rev3"
 #        self.linkObj.ViewObject.Visibility = False
 #        fp.ViewObject.Visibility = True
 #        self.obj.Proxy.editingMode = False #self.obj.Proxy is the Bevel class object (self in that class)
+#        FreeCADGui.activeDocument().resetEdit()
 #        FreeCAD.ActiveDocument.recompute()
 #
 #    def accept(self):
@@ -191,29 +192,36 @@ __version__ = "0.2021.10.10.rev3"
 #            fp.Proxy.editingMode = False
 #        FreeCAD.ActiveDocument.recompute()
 #
-
-        
+#
 #class BevelVP:
-
+#
 #    def __init__(self, obj):
 #        '''Set this object to the proxy object of the actual view provider'''
 #        obj.Proxy = self
- 
+#
 #    def attach(self, obj):
 #        '''Setup the scene sub-graph of the view provider, this method is mandatory'''
 #        self.Object = obj.Object
- 
+#
 #    def updateData(self, fp, prop):
 #        '''If a property of the handled feature has changed we have the chance to handle this here'''
 #        # fp is the handled feature, prop is the name of the property that has changed
 #        pass
- 
+#
 #    def getDisplayModes(self,obj):
 #        '''Return a list of display modes.'''
 #        modes=[]
 #        modes.append("Flat Lines")
 #        return modes
- 
+#
+#    def setEdit(self,vobj,modNum):
+#        if modNum == 0:
+#            vobj.Object.Proxy.editVertices()
+#            return True
+#        elif modNum == 3:
+#            FreeCADGui.runCommand('Part_ColorPerFace',0)
+#            return True
+#
 #    def getDefaultDisplayMode(self):
 #        '''Return the name of the default display mode. It must be defined in getDisplayModes.'''
 #        return "Flat Lines"
@@ -222,17 +230,17 @@ __version__ = "0.2021.10.10.rev3"
 #        '''Map the display mode defined in attach with those defined in getDisplayModes.\
 #                Since they have the same names nothing needs to be done. This method is optional'''
 #        return mode
- 
+#
 #    def onChanged(self, vp, prop):
 #        '''Here we can do something when a single property got changed'''
 #        #FreeCAD.Console.PrintMessage("Change property: " + str(prop) + ""+chr(10))
-
+#
 #    def claimChildren(self):
 #        if self.Object.ClaimChildren and self.Object.Vertices and not self.Object.Shape.isNull():
 #            return [self.Object.Vertices[0]]
 #        else:
 #            return []
-
+#
 #    def onDelete(self, vobj, subelements):
 #        if vobj.Object.Vertices:
 #            vobj.Object.Vertices[0].ViewObject.Visibility = True
@@ -242,7 +250,7 @@ __version__ = "0.2021.10.10.rev3"
 #            if len(solids) == 1: #found previous solid feature
 #                solids[0].BaseFeature = vobj.Object.BaseFeature
 #        return True
-
+#
 #    def getIcon(self):
 #        '''Return the icon in XPM format which will appear in the tree view. This method is\
 #                optional and if not defined a default icon is shown.'''
