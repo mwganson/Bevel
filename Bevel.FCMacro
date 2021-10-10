@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.10.09"
-#__version__ = "0.2021.10.09"
+__version__ = "0.2021.10.10"
+#__version__ = "0.2021.10.10"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -236,6 +236,10 @@ __version__ = "0.2021.10.09"
 #    def onDelete(self, vobj, subelements):
 #        if vobj.Object.Vertices:
 #            vobj.Object.Vertices[0].ViewObject.Visibility = True
+#        #need to ensure the next feature in the tree's BaseFeature property points to our BaseFeature
+#        solids = [feat for feat in body.Group if feat.isDerivedFrom("PartDesign::Feature") and feat.BaseFeature == vobj.Object]
+#        if len(solids) == 1: #found previous solid feature
+#            solids[0].BaseFeature = vobj.Object.BaseFeature
 #        return True
 
 #    def getIcon(self):
