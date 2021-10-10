@@ -49,6 +49,8 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
+** v0.2021.10.10.rev2 -- bug fix, uninitialized variable
+** v0.2021.10.10 -- ensure next feature in the tree inherits bevel object's basefeature when bevel object is deleted
 ** v0.2021.10.09 -- change icon to more colorized version<br/>
 ** do not claim children by default in part design <br/>
 ** add simple vertex editor <br/>
