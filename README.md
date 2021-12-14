@@ -21,8 +21,11 @@ This is a boolean property.  If true (default) the object will claim its childre
 ## Edit Vertices
 Boolean variable used to toggle a command action.  Brings up a simple vertex editor with which you can select the vertices to be used in the 3D view.
 
+## Fillet All Edges
+Default: False.  If True, all edges are attempted to be filleted, not just newly created edges.  Note: Refine must be True or fillet will not be attempted because this will sometimes cause FreeCAD to hang.  See also Fillet Edges property.
+
 ## Fillet Edges
-This is a boolean property, default = false.  If true, the edges created by the bevel are also filleted.  Only the edges created by the bevel operation are filleted.  Use a fillet tool to fillet the others, if desired.  Note: OCCT (Open Cascade Technologies), the CAD kernel FreeCAD uses will sometimes fillet additional edges if they are tangent to a selected edge.
+This is a boolean property, default = false.  If true, the edges created by the bevel are also filleted.  Only the edges created by the bevel operation are filleted.  Use a fillet tool to fillet the others, if desired.  Note: OCCT (Open Cascade Technologies), the CAD kernel FreeCAD uses will sometimes fillet additional edges if they are tangent to a selected edge.  Note2: Refine must be True or else the fillet will not be attempted.  In testing sometimes the filleting operation hangs FreeCAD if Refine is False.
 
 ## Fillet Radius
 The radius of the fillets, if Fillet Edges property is set to true.  Values are in millimeters.  Default value is 0.1 mm.  Note: fillets are notoriously finicky.  Sometimes they work, sometimes they don't.  Adjusting the fillet radius will often lead to a successful fillet.  It is generally better to start with a small radius and gradually increase to the desired radius.
@@ -49,6 +52,8 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
+** v0.2021.12.14 -- add handling of inside corners (fused instead of cut)
+-- add FilletAllEdges property, to fillet all edges, not just newly created edges
 ** v0.2021.10.10.rev3 -- bug fix, only need to worry about previous solid basefeature on deletion when inside PD body, so check for that first
 ** v0.2021.10.10.rev2 -- bug fix, uninitialized variable
 ** v0.2021.10.10 -- ensure next feature in the tree inherits bevel object's basefeature when bevel object is deleted
