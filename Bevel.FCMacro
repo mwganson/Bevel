@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.10.10.rev4"
-#__version__ = "0.2021.10.10.rev4"
+__version__ = "0.2021.12.14"
+#__version__ = "0.2021.12.14"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -9,7 +9,7 @@ __version__ = "0.2021.10.10.rev4"
 #import Part, FreeCADGui, FreeCAD
 #from PySide import QtGui,QtCore
 #BASENAME = "bevel"
-
+#
 #class Bevel:
 #    def __init__(self,obj):
 #        obj.addProperty("App::PropertyLength","Length","Bevel","distance from vertex to point along edge to be removed").Length = 1
@@ -20,6 +20,7 @@ __version__ = "0.2021.10.10.rev4"
 #        if not hasattr(obj,"Refine"):
 #            obj.addProperty("App::PropertyBool","Refine", "Bevel", "refine feature").Refine = False
 #        obj.addProperty("App::PropertyBool","FilletEdges","Bevel", "whether to fillet the edges created with the bevel").FilletEdges = False
+#        obj.addProperty("App::PropertyBool","FilletAllEdges","Bevel", "whether to fillet all the edges").FilletAllEdges = False
 #        obj.addProperty("App::PropertyFloatConstraint", "FilletRadius","Bevel","radius of fillets in mm").FilletRadius = (.1,0.001,10e17,.1)
 #        obj.addProperty("App::PropertyBool","ClaimChildren","Bevel","whether to claim children in the tree").ClaimChildren = True
 #        self.editingMode = False
@@ -55,7 +56,8 @@ __version__ = "0.2021.10.10.rev4"
 #        vertices = []
 #        object = fp.Vertices[0]
 #        mapped = {}
-#        lofts = []
+#        insideLofts = []
+#        outsideLofts = []
 #        if not fp.UseAllVertices:
 #            for vname in fp.Vertices[1]:
 #                vertices.append(getattr(object.Shape,vname))
@@ -83,28 +85,46 @@ __version__ = "0.2021.10.10.rev4"
 #            pts = val+[val[0]]
 #            if len(pts) > 2:
 #                poly = Part.makePolygon(pts)
-#                lofts.append(Part.makeLoft([k,poly],True))
+#                loft = Part.makeLoft([k,poly],True)
+#                if object.Shape.cut(loft).isInside(k.Point,.01,True):
+#                    insideLofts.append(loft)
+#                else:
+#                    outsideLofts.append(loft)
 #            else:
 #                FreeCAD.Console.PrintError("Error making bevel\n")
 #                return
-#        comp = Part.makeCompound(lofts)
-#        if len(lofts)>1:
-#            fusion = Part.Shape(lofts[0]).fuse(lofts[1:])
+#        #handle inside corners by fusing those lofts instead of cutting
+#        #test for this by fusing and checking if the volume has increased
+#        origShape = object.Shape.removeSplitter()
+#        if len(outsideLofts)>1:
+#            outsideFusion = Part.Shape(outsideLofts[0]).fuse(outsideLofts[1:])
 #        else:
-#            if lofts:
-#                fusion = Part.Shape(lofts[0])
-#            else:
-#                fusion = Part.Shape()
+#            outsideFusion = outsideLofts[0]
+#        if len(insideLofts)>1:
+#            insideFusion = Part.Shape(insideLofts[0]).fuse(insideLofts[1:])
+#        else:
+#            insideFusion = insideLofts[0]
 #        try:
-#            shape = object.Shape.cut(fusion)
-#            if fp.Refine:
-#                shape = shape.removeSplitter()
+#            shape = object.Shape.cut(outsideFusion).fuse(insideFusion)
 #        except:
 #            shape = None
-#        if shape and fp.FilletEdges:
-#            common = self.findCommonEdges(shape, fusion)
-#            if common:
-#                shape = shape.makeFillet(fp.FilletRadius, common)
+#        if fp.Refine:
+#            shape = shape.removeSplitter()
+#        fusion = insideFusion.fuse(outsideFusion).removeSplitter()
+#        if shape and bool(fp.FilletEdges or bool(hasattr(fp,"FilletAllEdges"))and fp.FilletAllEdges):
+#            if fp.Refine or len(insideLofts) == 0:
+#                if hasattr(fp,"FilletAllEdges") and fp.FilletAllEdges:
+#                    common = shape.Edges
+#                else:
+#                    common = self.findCommonEdges(shape, fusion)
+#                if common:
+#                    try:
+#                        shape2 = shape.makeFillet(fp.FilletRadius, common)
+#                        shape = shape2 #only get here if makeFillet succeeded
+#                    except:
+#                        FreeCAD.Console.PrintError("Failed to make fillet, skipping\n")
+#            else:
+#                FreeCAD.Console.PrintMessage("Refine = True required for Fillet Edges option if there are inside corners, else FreeCAD will sometimes hang.  Skipping fillet.\n")
 #        if hasattr(fp,"BaseFeature") and hasattr(fp,"AddSubShape"):
 #            if fp.BaseFeature and not shape.isNull():
 #                fp.AddSubShape = shape.common(fp.BaseFeature.Shape)
