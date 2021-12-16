@@ -1,0 +1,744 @@
+# -*- coding: utf-8 -*-
+__version__ = "0.2021.12.16"
+#__version__ = "0.2021.12.16"
+#__title__ = "Bevel Macro"
+#__author__ = "<TheMarkster> 2021"
+#__license__ = "LGPL 2.1"
+#__doc__ = "Bevel the selected vertices of an object."
+#__usage__ = '''Select the vertices or the entire object and activate the tool, modify properties as desired'''
+#import Part, FreeCADGui, FreeCAD
+#from PySide import QtGui,QtCore
+#BASENAME = "bevel"
+#
+#class Bevel:
+#    def __init__(self,obj):
+#        obj.addProperty("App::PropertyLength","Length","Bevel","distance from vertex to point along edge to be removed").Length = 1
+#        obj.addProperty("App::PropertyLinkSub","Vertices","Bevel","Selected vertices to be beveled")
+#        obj.addProperty("App::PropertyString", "Version", "Bevel", "version this object was created with").Version = __version__
+#        obj.addProperty("App::PropertyBool","EditVertices","Bevel","Trigger, toggle to bring up vertex editor").EditVertices = False
+#        obj.addProperty("App::PropertyBool","UseAllVertices","Bevel","use all vertices of this object").UseAllVertices = False
+#        if not hasattr(obj,"Refine"):
+#            obj.addProperty("App::PropertyBool","Refine", "Bevel", "refine feature").Refine = False
+#        obj.addProperty("App::PropertyBool","FilletEdges","Bevel", "whether to fillet the edges created with the bevel").FilletEdges = False
+#        obj.addProperty("App::PropertyBool","FilletAllEdges","Bevel", "whether to fillet all the edges").FilletAllEdges = False
+#        obj.addProperty("App::PropertyFloatConstraint", "FilletRadius","Bevel","radius of fillets in mm").FilletRadius = (.1,0.001,10e17,.1)
+#        obj.addProperty("App::PropertyBool","ClaimChildren","Bevel","whether to claim children in the tree").ClaimChildren = True
+#        self.editingMode = False
+#        self.fpName = obj.Name
+#        obj.Proxy = self
+#
+#    def onChanged(self,fp,prop):
+#        if prop == "EditVertices" and fp.EditVertices == True:
+#            t = QtCore.QTimer()
+#            t.singleShot(50, self.editVertices) #avoid warning message about selection changing while committing data
+#            fp.EditVertices = False
+#
+#    def editVertices(self):
+#        fp = FreeCAD.ActiveDocument.getObject(self.fpName)
+#        if not fp.Vertices:
+#            return
+#        object = fp.Vertices[0]
+#        if not object:
+#            return
+#        if not FreeCADGui.Control.activeDialog():
+#            panel = TaskEditLinkSubPanel(fp,"Vertices","Vertex")
+#            FreeCADGui.Control.showDialog(panel)
+#            self.editingMode = True #tells execute() not to hide the linked object
+#            if fp.UseAllVertices:
+#                FreeCAD.Console.PrintWarning("Use All Vertices property is True, which overrides the Vertices property.  You must set it to False in order to use only selected vertices.\n")
+#        else:
+#            self.editingMode=False
+#            FreeCAD.Console.PrintError("Another task dialog is active.  Close that one and try again.\n")
+#
+#    def execute(self,fp):
+#        if not fp.Vertices:
+#            return
+#        vertices = []
+#        object = fp.Vertices[0]
+#        solid = len(object.Shape.Solids) > 0
+#        mapped = {}
+#        insideLofts = []
+#        outsideLofts = []
+#        if not fp.UseAllVertices:
+#            for vname in fp.Vertices[1]:
+#                if vname != '':
+#                    vertices.append(getattr(object.Shape,vname))
+#        else:
+#            for ii in range(0,len(object.Shape.removeSplitter().Vertexes)):
+#                name = "Vertex"+str(ii+1)
+#                vertices.append(getattr(object.Shape.removeSplitter(),name))
+#        for vert in vertices:
+#            shape_pts = []
+#            for edge in object.Shape.removeSplitter().Edges:
+#                hasCurve = False
+#                for edge_vert in edge.Vertexes:
+#                    if edge_vert.Point.isEqual(vert.Point,1e-7):
+#                        #this is an edge containing a selected vertex
+#                        if edge.Curve.TypeId != "Part::GeomLine":
+#                            hasCurve = True #we'll skip this edge
+#                        else:
+#                            hasCurve = False
+#                        other_vert = self.getOtherVertex(edge_vert, edge)
+#                        if other_vert:
+#                            dir = edge_vert.Point.sub(other_vert.Point).normalize()
+#                            #line = Part.makeLine(edge_vert.Point,edge_vert.Point.sub(dir.multiply(fp.Length)))
+#                            mid = edge_vert.Point.sub(dir.multiply(fp.Length)) #point along edge fp.Length distance from selected vertex
+#                            if not hasCurve:
+#                                shape_pts.append(mid)
+#            if solid:
+#                if len(shape_pts) >= 3:
+#                    mapped[vert] = shape_pts
+#            else:
+#                if len(shape_pts) >= 2:
+#                    mapped[vert] = shape_pts
+#        for k,val in mapped.items():
+#            if not val:
+#                FreeCAD.Console.PrintError("Error making bevel\n")
+#                return
+#            pts = val+[val[0]]
+#            if len(pts) > 2:
+#                poly = Part.makePolygon(pts)
+#                loft = Part.makeLoft([k,poly],solid)
+#                loft = loft.reversed() if not solid else loft
+#                if object.Shape.cut(loft).isInside(k.Point,.01,True):
+#                    insideLofts.append(loft)
+#                else:
+#                    outsideLofts.append(loft)
+#            else:
+#                FreeCAD.Console.PrintError("Error making bevel\n")
+#                return
+#        #handle inside corners by fusing those lofts instead of cutting
+#        #test for this by fusing and checking if the volume has increased
+#        origShape = object.Shape.removeSplitter()
+#        if len(outsideLofts)>1:
+#            outsideFusion = Part.Shape(outsideLofts[0]).fuse(outsideLofts[1:])
+#        elif len(outsideLofts) == 1:
+#            outsideFusion = outsideLofts[0]
+#        else:
+#            outsideFusion = Part.Shape()
+#        if len(insideLofts)>1:
+#            insideFusion = Part.Shape(insideLofts[0]).fuse(insideLofts[1:])
+#        elif len(insideLofts) == 1:
+#            insideFusion = insideLofts[0]
+#        else:
+#            insideFusion = Part.Shape()
+#        try:
+#            shape = object.Shape.cut(outsideFusion).fuse(insideFusion)
+#        except:
+#            FreeCAD/Console.PrintError("Error making boolean\n")
+#            shape = object.Shape
+#        if len(insideLofts) + len(outsideLofts) == 0:
+#            ## don't warn about not making any bevels if user is filleting all edges
+#            if hasattr(fp,"FilletAllEdges") and not fp.FilletAllEdges:
+#                FreeCAD.Console.PrintWarning("No bevels were made.\n")
+#        if fp.Refine and not shape.isNull():
+#            shape = shape.removeSplitter()
+#        fusion = insideFusion.fuse(outsideFusion)
+#        if not fusion.isNull():
+#            fusion = fusion.removeSplitter()
+#        if shape and bool(fp.FilletEdges or bool(hasattr(fp,"FilletAllEdges"))and fp.FilletAllEdges):
+#            if fp.Refine or len(insideLofts) == 0:
+#                if hasattr(fp,"FilletAllEdges") and fp.FilletAllEdges:
+#                    common = shape.Edges
+#                else:
+#                    common = self.findCommonEdges(shape, fusion)
+#                if common:
+#                    try:
+#                        shape2 = shape.makeFillet(fp.FilletRadius, common)
+#                        shape = shape2 #only get here if makeFillet succeeded
+#                    except:
+#                        FreeCAD.Console.PrintError("Failed to make fillet, skipping\n")
+#            else:
+#                FreeCAD.Console.PrintMessage("Refine = True required for Fillet Edges option if there are inside corners, else FreeCAD will sometimes hang.  Skipping fillet.\n")
+#        if hasattr(fp,"BaseFeature") and hasattr(fp,"AddSubShape"):
+#            if fp.BaseFeature and not shape.isNull():
+#                fp.AddSubShape = shape.common(fp.BaseFeature.Shape)
+#            else:
+#                fp.AddSubShape = shape
+#        fp.Shape = shape if shape else Part.Shape()
+#        if not self.editingMode:
+#            object.ViewObject.Visibility = False if shape else True
+
+
+#    def getOtherVertex(self,v0,edge):
+#        '''get the other vertex from this edge of which v0 is one vertex'''
+#        for v in edge.Vertexes:
+#            if not v.Point.isEqual(v0.Point,1e-7):
+#                return v
+#        return None #not found
+
+#    def findCommonEdges(self, shape1, shape2):
+#        '''find the common edges of 2 shapes, return them as a list of edges of shape1'''
+#        common = []
+#        for edge in shape1.Edges:
+#            for edge2 in shape2.Edges:
+#                if self.isSameEdge(edge,edge2) and edge not in common:
+#                    common.append(edge)
+#        return common
+
+#    def isSameEdge(self, edge1, edge2):
+#        '''compare 2 edges.  They are the same if their vertices are within tolerance distance of each other 1e-7'''
+#        equals = 0
+#        if edge1.Vertex1.Point.isEqual(edge2.Vertex1.Point, 1e-7) or edge1.Vertex1.Point.isEqual(edge2.Vertex2.Point, 1e-7):
+#            equals += 1
+#        if edge1.Vertex2.Point.isEqual(edge2.Vertex1.Point, 1e-7) or edge1.Vertex2.Point.isEqual(edge2.Vertex2.Point, 1e-7):
+#            equals += 1
+#        return True if equals == 2 else False
+
+#class TaskEditLinkSubPanel: #simple editor for App::PropertyLinkSub
+#    def __init__(self, obj, linkSubName, subNames,):
+#        self.obj = obj
+#        self.subNames = subNames
+#        self.linkSubName = linkSubName #entire LinkSub property
+#        self.linkObj = getattr(self.obj,linkSubName)[0]
+#        self.subObjects = getattr(self.obj,linkSubName)[1]
+#        self.form = QtGui.QWidget()
+#        self.label1 = QtGui.QLabel("Select the "+self.subNames+" subobjects to use and click OK.\nThe ones already being utilized have been selected for you.")
+#        layout=QtGui.QHBoxLayout()
+#        layout.addWidget(self.label1)
+#        self.form.setLayout(layout)
+#        self.form.setWindowTitle('Edit '+self.subNames)
+#        self.obj.ViewObject.Visibility = False
+#        self.linkObj.ViewObject.Visibility = True
+#        FreeCADGui.Selection.clearSelection()
+#        for f in self.subObjects:
+#            FreeCADGui.Selection.addSelection(FreeCAD.ActiveDocument.Name,self.linkObj.Name,f)
+#        self.obj.Proxy.editingMode = True
+#
+#    def reject(self):
+#        FreeCADGui.Control.closeDialog()
+#        fp = self.obj
+#        self.linkObj.ViewObject.Visibility = False
+#        fp.ViewObject.Visibility = True
+#        self.obj.Proxy.editingMode = False #self.obj.Proxy is the Bevel class object (self in that class)
+#        FreeCADGui.activeDocument().resetEdit()
+#        FreeCAD.ActiveDocument.recompute()
+#
+#    def accept(self):
+#        FreeCADGui.ActiveDocument.resetEdit()
+#        FreeCADGui.Control.closeDialog()
+#        fp = self.obj
+#        if not fp: #user deleted or closed document perhaps
+#            return
+#        selx = FreeCADGui.Selection.getSelectionEx()
+#        if not selx:
+#            FreeCAD.Console.PrintWarning("Nothing selected, leaving "+self.linkObj.Name+" unmodified.")
+#            return
+#        seNames = [sen for sen in selx[0].SubElementNames if self.subNames in sen]
+#        setattr(self.obj,self.linkSubName,(selx[0].Object,seNames)) #allow user to select diffent object
+#        self.linkObj = selx[0].Object
+#        if hasattr(fp,"_Body") and fp._Body and self.linkObj not in fp._Body.Group:
+#            fp._Body.Group += [self.linkObj]
+#            if not self.linkObj.isDerivedFrom("PartDesign::Feature"):
+#               fp.ClaimChildren = True
+#        self.linkObj.ViewObject.Visibility = False
+#        fp.ViewObject.Visibility = True
+#        if hasattr(fp.Proxy,"editingMode"):
+#            fp.Proxy.editingMode = False
+#        FreeCAD.ActiveDocument.recompute()
+#
+#
+#class BevelVP:
+#
+#    def __init__(self, obj):
+#        '''Set this object to the proxy object of the actual view provider'''
+#        obj.Proxy = self
+#
+#    def attach(self, obj):
+#        '''Setup the scene sub-graph of the view provider, this method is mandatory'''
+#        self.Object = obj.Object
+#
+#    def updateData(self, fp, prop):
+#        '''If a property of the handled feature has changed we have the chance to handle this here'''
+#        # fp is the handled feature, prop is the name of the property that has changed
+#        pass
+#
+#    def getDisplayModes(self,obj):
+#        '''Return a list of display modes.'''
+#        modes=[]
+#        modes.append("Flat Lines")
+#        return modes
+#
+#    def setEdit(self,vobj,modNum):
+#        if modNum == 0:
+#            vobj.Object.Proxy.editVertices()
+#            return True
+#        elif modNum == 3:
+#            FreeCADGui.runCommand('Part_ColorPerFace',0)
+#            return True
+#
+#    def getDefaultDisplayMode(self):
+#        '''Return the name of the default display mode. It must be defined in getDisplayModes.'''
+#        return "Flat Lines"
+ 
+#    def setDisplayMode(self,mode):
+#        '''Map the display mode defined in attach with those defined in getDisplayModes.\
+#                Since they have the same names nothing needs to be done. This method is optional'''
+#        return mode
+#
+#    def onChanged(self, vp, prop):
+#        '''Here we can do something when a single property got changed'''
+#        #FreeCAD.Console.PrintMessage("Change property: " + str(prop) + ""+chr(10))
+#
+#    def claimChildren(self):
+#        if self.Object.ClaimChildren and self.Object.Vertices and not self.Object.Shape.isNull():
+#            return [self.Object.Vertices[0]]
+#        else:
+#            return []
+#
+#    def onDelete(self, vobj, subelements):
+#        if vobj.Object.Vertices:
+#            vobj.Object.Vertices[0].ViewObject.Visibility = True
+#        if hasattr(vobj.Object,"_Body"): #do this only when the object is in a PD body
+#            #need to ensure the next feature in the tree's BaseFeature property points to our BaseFeature
+#            solids = [feat for feat in vobj.Object._Body.Group if feat.isDerivedFrom("PartDesign::Feature") and feat.BaseFeature == vobj.Object]
+#            if len(solids) == 1: #found previous solid feature
+#                solids[0].BaseFeature = vobj.Object.BaseFeature
+#        return True
+#
+#    def getIcon(self):
+#        '''Return the icon in XPM format which will appear in the tree view. This method is\
+#                optional and if not defined a default icon is shown.'''
+#        return '''
+#/* XPM */
+#static char *a1ua2_q91uc[] = {
+#/* columns rows colors chars-per-pixel */
+#"64 64 208 2 ",
+#"   c #772C3F",
+#".  c #743F50",
+#"X  c #644956",
+#"o  c #5B5B77",
+#"O  c #6E5472",
+#"+  c #725674",
+#"@  c #900F17",
+#"#  c #BE0102",
+#"$  c #A60F14",
+#"%  c #B51414",
+#"&  c #B81C22",
+#"*  c #8D2635",
+#"=  c #B7252D",
+#"-  c #BE2F38",
+#";  c #AE323B",
+#":  c #B53239",
+#">  c #D40B12",
+#",  c #D71318",
+#"<  c #F90608",
+#"1  c #F00E14",
+#"2  c #EB1217",
+#"3  c #EF121A",
+#"4  c #EB181E",
+#"5  c #F31217",
+#"6  c #F2151C",
+#"7  c #F7161C",
+#"8  c #FA161C",
+#"9  c #CB1B21",
+#"0  c #DC1C23",
+#"q  c #E31C24",
+#"w  c #ED1C24",
+#"e  c #F11A21",
+#"r  c #D7262D",
+#"t  c #CF2B32",
+#"y  c #CB2C36",
+#"u  c #DB2932",
+#"i  c #E3212B",
+#"p  c #883B4B",
+#"a  c #98394B",
+#"s  c #BB2F41",
+#"d  c #AB3B4B",
+#"f  c #CB3D49",
+#"g  c #83425A",
+#"h  c #9E4758",
+#"j  c #BD404A",
+#"k  c #AE4A51",
+#"l  c #AD525E",
+#"z  c #BC5159",
+#"x  c #A45B69",
+#"c  c #B75E68",
+#"v  c #896379",
+#"b  c #BB6567",
+#"n  c #BD787A",
+#"m  c #D5464C",
+#"M  c #D44D53",
+#"N  c #CC5458",
+#"B  c #D05158",
+#"V  c #E74B51",
+#"C  c #E74C53",
+#"Z  c #F4555D",
+#"A  c #FA5358",
+#"S  c #FB545C",
+#"D  c #DA5C60",
+#"F  c #F35B63",
+#"G  c #FB5B62",
+#"H  c #C06F72",
+#"J  c #DB6F72",
+#"K  c #DC7276",
+#"L  c #E56766",
+#"P  c #3E5C8A",
+#"I  c #4E648D",
+#"U  c #5A6B95",
+#"Y  c #4D729D",
+#"T  c #597195",
+#"R  c #5B759C",
+#"E  c #6E6E8A",
+#"W  c #7C718B",
+#"Q  c #6C7893",
+#"!  c #667C9B",
+#"~  c #6B7D9D",
+#"^  c #727A98",
+#"/  c #4A6FA4",
+#"(  c #4D74A8",
+#")  c #5C78A2",
+#"_  c #527BB3",
+#"`  c #577EB9",
+#"'  c #587FBA",
+#"]  c #846F80",
+#"[  c #9A7B8D",
+#"{  c #A87286",
+#"}  c #6C819E",
+#"|  c #4E85BA",
+#" . c #5383BB",
+#".. c #5D83BB",
+#"X. c #5D84BB",
+#"o. c #6E84A3",
+#"O. c #6888AA",
+#"+. c #6E88AE",
+#"@. c #7588A5",
+#"#. c #7B8BA5",
+#"$. c #7389A9",
+#"%. c #7B90AE",
+#"&. c #6084B9",
+#"*. c #698AB9",
+#"=. c #738FB2",
+#"-. c #728EB9",
+#";. c #6390B4",
+#":. c #7991B4",
+#">. c #7491BB",
+#",. c #7A95BC",
+#"<. c #4C8AC2",
+#"1. c #568EC7",
+#"2. c #5C8BC3",
+#"3. c #5490CB",
+#"4. c #6B9CC2",
+#"5. c #7499C1",
+#"6. c #7E9BC4",
+#"7. c #7AA1CB",
+#"8. c #7DA7D2",
+#"9. c #79AAD5",
+#"0. c #7EAAD5",
+#"q. c #89899E",
+#"w. c #94879C",
+#"e. c #A1889B",
+#"r. c #8895AA",
+#"t. c #9E95AD",
+#"y. c #8095B2",
+#"u. c #8C9BB5",
+#"i. c #8B9EBA",
+#"p. c #9B9EB8",
+#"a. c #A59AAE",
+#"s. c #96A0AE",
+#"d. c #8DA1BC",
+#"f. c #92A2BC",
+#"g. c #9AA6B8",
+#"h. c #A4ADBA",
+#"j. c #A9B1BF",
+#"k. c #B1B6BE",
+#"l. c #B5B8BF",
+#"z. c #C68A8B",
+#"x. c #DB8689",
+#"c. c #C49EA0",
+#"v. c #DA9FA1",
+#"b. c #C4A6A7",
+#"n. c #D0AEAE",
+#"m. c #D2BABA",
+#"M. c #E0A1A3",
+#"N. c #E8B1B1",
+#"B. c #839FC7",
+#"V. c #829FC8",
+#"C. c #84A1CA",
+#"Z. c #94A5C1",
+#"A. c #97A9C4",
+#"S. c #96AAC5",
+#"D. c #9AAAC2",
+#"F. c #9BAECC",
+#"G. c #97B2CF",
+#"H. c #82A6D1",
+#"J. c #84A9D3",
+#"K. c #84AED9",
+#"L. c #8FB4D0",
+#"P. c #9EB2D1",
+#"I. c #9BBCDA",
+#"U. c #A2AEC2",
+#"Y. c #A3B1C6",
+#"T. c #A5B2CA",
+#"R. c #AEB9CA",
+#"E. c #B4B9C2",
+#"W. c #B4BECC",
+#"Q. c #A2B5D4",
+#"!. c #A5B9D6",
+#"~. c #A7BAD8",
+#"^. c #A8BCDA",
+#"/. c #BAC0CA",
+#"(. c #BCC3CC",
+#"). c #ACC0DE",
+#"_. c #B8C3D3",
+#"`. c #BBC4D1",
+#"'. c #9BC4E4",
+#"]. c #A5C6E5",
+#"[. c #ABC4E3",
+#"{. c #A8CAEA",
+#"}. c #C3C6CB",
+#"|. c #CCCCCF",
+#" X c #D2CBCB",
+#".X c #DDCFCF",
+#"XX c #C3CAD3",
+#"oX c #CDCCD1",
+#"OX c #C7CED8",
+#"+X c #CDD0D7",
+#"@X c #CCD2DC",
+#"#X c #D4D4D5",
+#"$X c #DAD7D7",
+#"%X c #D2D6DC",
+#"&X c #DDDCDC",
+#"*X c #D8DBE1",
+#"=X c #DEE0E4",
+#"-X c #DEECEB",
+#";X c #E2E3E3",
+#":X c #E5E8EA",
+#">X c #EBECEC",
+#",X c #F4EEEC",
+#"<X c #F3F1EE",
+#"1X c #EAF4F3",
+#"2X c #F3F3F2",
+#"3X c #F8F6F4",
+#"4X c #F3FCFC",
+#"5X c none",
+#/* pixels */
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X<X&X%XXX#X2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X:X=X%XOX`.W.R.Y.A.i.Z.R.`.%X3X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X>X%X@XXX`.R.Y.f.i.:.+.,.6.6.V.V.>.%.D.`.OX*X2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X2XR.u.y.$.+.6.6.V.V.C.C.V.V.V.V.V.C.V.V.-.%.g.`.@X;X2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X2XW.-.V.V.C.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.V.V.>.$.g.XX*X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X3X(.-.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.B.B.V.V.V.V.V.C.6.>.! $X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X4X}.-.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.B.V.V.V.V.V.V.V.V.V.H.X ,X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X|.*.V.V.V.V.V.V.V.V.V.V.B.V.V.V.V.V.V.V.B.V.V.V.V.V.C.V.V.V.C.~ k 5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X|.-.V.V.V.V.V.B.V.V.V.V.V.B.V.V.V.V.V.V.V.B.B.V.V.B.V.V.V.V.V.C.K.@ b.5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X}.,.V.V.V.V.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.V.V.B.B.V.V.V.V.V.V.V.V.C.E % ;X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X X,.6.C.V.V.V.V.V.V.V.V.V.V.B.B.B.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.8.@ ; 5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5Xz.^ C.V.B.V.V.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.V.V.V.B.V.V.V.V.V.V.B.B.B.J.+ # b 5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X4XM x 8.V.V.V.V.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.V.V.B.B.V.V.V.V.B.V.B.B.B.C.5.$ % b.5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X XV C =.C.V.V.V.V.B.B.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.V.V.V.V.V.B.B.V.B.B.B.K.. # : $X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5Xn S S v H.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.B.B.V.V.V.V.V.B.V.V.V.C.=.R g $ b 3X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X>XM F F B 5.C.B.V.V.V.V.V.V.V.B.B.B.B.B.B.V.V.V.V.B.V.V.V.V.V.V.B.B.V.V.C.=.) X. .O * z.5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5Xm.A F F S W C.B.V.V.V.V.V.V.V.B.B.V.B.B.V.V.V.V.B.B.V.V.V.V.V.V.B.B.V.C.,.) ..&.&.2.U   oX5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5XH Z F F G z 7.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.B.C.6.R X.&.&.&.&.&. .o 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X1Xm F F F F A o.V.V.C.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.V.R X.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5Xb.S F F F F Z ] o.6.V.V.V.V.C.V.V.V.V.V.V.V.V.V.V.V.V.V.V.C.V.V.C.C.C.T &.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5Xb F F F S z d.[.[.u.#.~ 6.C.C.V.C.C.V.V.V.V.C.C.V.V.V.V.V.C.C.H.0.J.T &.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X-XV F G V [ ^.^.^.^.^.^.^.u.#.~ ,.C.C.V.V.V.V.C.C.H.H.0.0.9.;.^ v h . 2.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5Xc.S A c D.!.~.^.~.~.^.^.^.!.Q.!.f.%.o.,.C.0.0.4.o.W v h ; 9 i i q 6 o 2.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5XN M e.T.!.^.~.~.~.~.~.~.~.^.^.^.Q.Q.Q.d.^ d : y u u i q q 4 e e e ,  .&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X Xx a.P.^.^.~.~.~.~.~.~.~.~.~.~.~.^.^.^.Q.G.; 1 4 e e e w e w w w 8 a 1.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.p.^.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.[.t.0 e w w w w w w w w 5 I 2.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5XE.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.].{ 2 w w w w w w w e 9 | &.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.I.z 5 w w w w w w 7 p 1.&.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).A.y 6 w w w w w 5 U X.&.&.&.&.&.&.&.&.&.&.&.&.P 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.[.w.q e w w w e 9 <.&.&.&.&.&.&.&.&.&.&.&.&.&.I 5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.{.x 3 w w w 7 g 1.&.&.&.&.&.&.&.&.&.&.&.&...#.5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.'.- 6 w w 5 Y &.&.&.&.&.&.&.&.&.&.&.&.&._ }.5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.L., e e & 3.&.&.&.&.&.&.&.&.&.&.&.&.&.I 5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.[.q.< 8 O 2.&.&.&.&.&.&.&.&.&.&.&.&...r.5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.].x < ( &.&.&.&.&.&.&.&.&.&.&.&.&.( #X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xl.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.!.p 2.&.&.&.&.&.&.&.&.&.&.&.&...T 4X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5Xk.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.[.Q X.&.&.&.&.&.&.&.&.&.&.&.&...s.5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X|.F.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).o...&.&.&.&.&.&.&.&.&.&.&.&./ ;X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X2Xj.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&.&...! 5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X&XD.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&.&.` h.5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5XXXF.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&.&./ ;X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5XE.P.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&...! 5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X2XU.Q.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.&._ k.5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X&XA.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.&.../ ,X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5XE.Q.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.....r.5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5Xs.~.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.&.' @.5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5Xu.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.).} ..&.&.&.&.&.&.&.` o.5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X&XZ.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.^.[.O.2.&.&.&.&.&.&.' o.2X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X4X/.P.^.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.~.^.{.w.= o 1.&.&.&.&.' o.:X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X2Xj.u.~.~.^.~.~.~.~.~.~.~.~.~.^.~.^.[.A.x u 4 r a _ 2.&.' o.=X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X:X*X(.U.i.~.~.^.~.~.~.~.~.~.~.).'.[ f 0 6 w 7 q s +  .O.%X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X:X*X@X/.Y.f.Q.~.^.~.~.^.].p.c t 1 6 3 3 > , r l #.OX5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X;X%XXX_.T.Z.Q.^.F.{ j > 0 u m D K x.x.M.N. X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X;X+X(._.T.t.b L J x.v.m..X:X4X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X;X(.n.$X1X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X",
+#"5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X5X"
+#};
+#'''
+ 
+#    def __getstate__(self):
+#        '''When saving the document this object gets stored using Python's json module.\
+#                Since we have some un-serializable parts here -- the Coin stuff -- we must define this method\
+#                to return a tuple of all serializable objects or None.'''
+#        return None
+ 
+#    def __setstate__(self,state):
+#        '''When restoring the serialized object from document we have the chance to set some internals here.\
+#                Since no data were serialized nothing needs to be done here.'''
+#        return None
+
+
+
+############
+#if __name__ == "__main__":
+#    FreeCAD.Console.PrintMessage("Please run "+BASENAME+".FCMacro rather than this file.\n")
+############
+
+#CODE_ENDS_HERE
+
+
+def getBody(feature):
+    doc = FreeCAD.ActiveDocument
+    bodies = [obj for obj in doc.Objects if obj.TypeId == "PartDesign::Body"]
+    for bod in bodies:
+        if feature in bod.Group:
+            return bod
+    return None
+
+def makeObject(BV):
+    doc = FreeCAD.ActiveDocument
+    body=None
+    selobjs = FreeCADGui.Selection.getSelectionEx()
+    if doc:
+        doc.openTransaction("Create Bevel"+"s" if len(selobjs) > 1 else "")
+
+        if selobjs:
+            for selobj in selobjs:
+                body = getBody(selobj.Object)
+                if body:
+                    bevel = body.newObject("PartDesign::FeatureAdditivePython","Bevel")
+                else:
+                    bevel = doc.addObject("Part::FeaturePython","Bevel")
+                BV.Bevel(bevel)
+                BV.BevelVP(bevel.ViewObject)
+                if body:
+                    bevel.ClaimChildren = False #do not claim children in Part Design to preserve the linear tree
+                if selobj.HasSubObjects:
+                    verts = [name for name in selobj.SubElementNames if not "Edge" in name and not "Face" in name]
+                    if verts:
+                        bevel.Vertices = (selobj.Object,verts)
+                    else:
+                        FreeCAD.Console.PrintWarning("No vertices among selected subobjects, using all vertices.\n")
+                        bevel.Vertices = (selobj.Object, "")
+                        bevel.UseAllVertices = True
+                else:
+                    bevel.Vertices = (selobj.Object, "")
+                    bevel.UseAllVertices = True
+        else:
+            FreeCAD.Console.PrintMessage("No object selected to bevel.\n")
+        doc.commitTransaction()
+
+BASENAME = "bevel"
+
+
+
+def writeFile():
+    with open(py_file,"w") as outfile:
+        for line in code.splitlines():
+            if "#CODE_ENDS_HERE" in line:
+                break
+            if line.startswith('#'):
+                if line == "# -*- coding: utf-8 -*-":
+                    line = "#" + line
+                outfile.write(line[1:]+"\n") #skip first character (#)
+
+
+
+############
+#if __name__ == "__main__":
+#    makeObject(None)
+#    raise Exception("quick exit for testing/debugging")
+############
+
+if __name__ == "__main__":
+    import os
+    fin = open(__file__, 'r')
+    code = fin.read()
+    fin.close()
+    version = code.splitlines()[1][16:]
+    real_path = os.path.realpath(__file__)
+    dir_path = os.path.dirname(real_path)
+    py_file = real_path.replace(".FCMacro",".py").replace('Bevel','bevel')
+    bHasFile = os.path.exists(py_file)
+    noImport = False #user elects not to save import file
+
+    if not bHasFile:
+        from PySide import QtCore,QtGui
+        window = QtGui.QApplication.activeWindow()
+        items = ["Yes, go ahead and create the file.", "No, do not create the file.","Cancel"]
+        caption = "In order for "+BASENAME+" objects to be parametric after saving and reloading file\n\
+we need to create another file on this computer.  File to be created will be: \n\n"+py_file+"\n\n\
+This makes it available to the system upon restarting FreeCAD and loading documents containing the \n\
+"+BASENAME+" feature python objects.  May we proceed?\n\n"
+        item,ok = QtGui.QInputDialog.getItem(window,"One time installation",caption,items)
+        if ok and item == items[0]:
+            writeFile()
+            QtGui.QMessageBox.information(window,"Success","File successfully created.  Please note: if you uninstall "+BASENAME+" macro you need to manually remove this file, too.\n")
+        else:
+            new_lines = []
+            for line in code.splitlines():
+                if line.startswith('#'):
+                    if "CODE_ENDS_HERE" in line:
+                        break
+                    if line == "# -*- coding: utf-8 -*-":
+                        new_lines.append(line+"\n")
+                        continue
+                    new_lines.append(line[1:]+"\n")
+            code = "".join(new_lines)
+
+            #credit to Mila Nautikus for his answer to a question on stackoverflow, which I modified here
+            #in this example the filename is bevel.py
+            #https://stackoverflow.com/questions/5362771/how-to-load-a-module-from-code-in-a-string
+
+            ##########
+            import sys, importlib
+            my_name = 'bevel' #filename = bevel.py, so this must be 'bevel'
+            my_spec = importlib.util.spec_from_loader(my_name, loader=None)
+
+            bevel = importlib.util.module_from_spec(my_spec)
+
+            exec(code, bevel.__dict__)
+            sys.modules['bevel'] = bevel
+            makeObject(bevel)
+            noImport = True
+
+    if not noImport: #don't never use no double negatives
+
+        import bevel as BV
+        import addonmanager_utilities as utils
+
+        if BV.__version__ != __version__:
+            writeFile()
+            from PySide import QtCore,QtGui
+            window = QtGui.QApplication.activeWindow()
+            mbox = QtGui.QMessageBox()
+            mbox.setWindowTitle(BASENAME+" updated")
+
+            mbox.setText(BASENAME+".py has been updated to version "+__version__+". \
+You must restart FreeCAD for the new changes to take effect and to use the macro.")
+            mbox.setIcon(mbox.Warning)
+            mbox.setStandardButtons(mbox.Ok | mbox.Cancel)
+            mbox.setDefaultButton(mbox.Cancel)
+            okBtn = mbox.button(QtGui.QMessageBox.StandardButton.Ok)
+            cancelBtn = mbox.button(QtGui.QMessageBox.StandardButton.Cancel)
+            okBtn.setText("Restart now")
+            cancelBtn.setText("Restart later")
+            ret = mbox.exec_()
+            if ret == mbox.Ok:
+                QtCore.QTimer.singleShot(1000, utils.restart_freecad)
+        else:
+            makeObject(BV)
