@@ -52,6 +52,10 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
+** v0.2021.12.16 -- don't use edges that are curves
+-- if beveling a 3d object, only make bevels with at least 3 points
+-- if beveling a 2d object, only make bevels with at least 2 points
+--  warn if not at least one bevel was done unless FilletAllEdges = True, because user might only want to fillet all the edges
 ** v0.2021.12.14 -- add handling of inside corners (fused instead of cut)
 -- add FilletAllEdges property, to fillet all edges, not just newly created edges
 ** v0.2021.10.10.rev3 -- bug fix, only need to worry about previous solid basefeature on deletion when inside PD body, so check for that first
