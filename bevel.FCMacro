@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.12.16"
-#__version__ = "0.2021.12.16"
+__version__ = "0.2021.12.21"
+#__version__ = "0.2021.12.21"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -99,7 +99,8 @@ __version__ = "0.2021.12.16"
 #            if len(pts) > 2:
 #                poly = Part.makePolygon(pts)
 #                loft = Part.makeLoft([k,poly],solid)
-#                loft = loft.reversed() if not solid else loft
+#                if not solid:
+#                    loft = loft.reversed() if not bool(loft.Face1.normalAt(0,0) == object.Shape.Face1.normalAt(0,0)) else loft
 #                if object.Shape.cut(loft).isInside(k.Point,.01,True):
 #                    insideLofts.append(loft)
 #                else:
