@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.12.21"
-#__version__ = "0.2021.12.21"
+__version__ = "0.2021.12.23"
+#__version__ = "0.2021.12.23"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -95,7 +95,8 @@ __version__ = "0.2021.12.21"
 #            if not val:
 #                FreeCAD.Console.PrintError("Error making bevel\n")
 #                return
-#            pts = val+[val[0]]
+#            pts = self.sortPoints(val)
+#            pts.append(val[0])
 #            if len(pts) > 2:
 #                poly = Part.makePolygon(pts)
 #                loft = Part.makeLoft([k,poly],solid)
@@ -159,15 +160,43 @@ __version__ = "0.2021.12.21"
 #        fp.Shape = shape if shape else Part.Shape()
 #        if not self.editingMode:
 #            object.ViewObject.Visibility = False if shape else True
-
-
+#
+#    def sortPoints(self,pts):
+#        """ sortPoints(pts)
+#            sort pts, a list of vectors, according to distance from one point to the next
+#            pts[0] is taken first, then the nearest point to it is placed at pts[1]
+#            then pts[1] is used to find the nearest point to it and placed at pts[2], and so on
+#        """
+#        newList = [pts[0]]
+#        for ii in range(0, len(pts)):
+#            newList.extend([self.nearestPoint(newList[ii],pts,newList)])
+#        return newList
+#
+#    def nearestPoint(self, pt, pts, exclude):
+#        """ nearestPoint(pt, pts, exclude)
+#            pt is a vector, pts a list of vectors
+#            exlude is a list of vectors to exclude from process
+#            return nearest point to pt in pts and not in exclude"""
+#        if len(pts) == 0: #should never happen
+#            raise Exception("Error: nearestPoint() pts length = 0\n")
+#        nearest = pts[0]
+#        d = 10**100
+#        for p in pts:
+#            if p in exclude:
+#                continue
+#            dis = pt.distanceToPoint(p)
+#            if dis < d:
+#                d = dis
+#                nearest = p
+#        return nearest
+#
 #    def getOtherVertex(self,v0,edge):
 #        '''get the other vertex from this edge of which v0 is one vertex'''
 #        for v in edge.Vertexes:
 #            if not v.Point.isEqual(v0.Point,1e-7):
 #                return v
 #        return None #not found
-
+#
 #    def findCommonEdges(self, shape1, shape2):
 #        '''find the common edges of 2 shapes, return them as a list of edges of shape1'''
 #        common = []
