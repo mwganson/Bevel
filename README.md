@@ -52,6 +52,7 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
+** v0.2021.12.23 -- bug fix (sort edges prior to making polygon for lofting to point)
 ** v0.2021.12.21 -- when base object is 2D face, ensure new faces are all on the same normal
 ** v0.2021.12.16 -- don't use edges that are curves
 -- if beveling a 3d object, only make bevels with at least 3 points
