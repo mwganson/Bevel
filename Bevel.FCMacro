@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2021.12.14"
-#__version__ = "0.2021.12.14"
+__version__ = "0.2022.01.19"
+#__version__ = "0.2022.01.19"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -55,12 +55,14 @@ __version__ = "0.2021.12.14"
 #            return
 #        vertices = []
 #        object = fp.Vertices[0]
+#        solid = len(object.Shape.Solids) > 0
 #        mapped = {}
 #        insideLofts = []
 #        outsideLofts = []
 #        if not fp.UseAllVertices:
 #            for vname in fp.Vertices[1]:
-#                vertices.append(getattr(object.Shape,vname))
+#                if vname != '':
+#                    vertices.append(getattr(object.Shape,vname))
 #        else:
 #            for ii in range(0,len(object.Shape.removeSplitter().Vertexes)):
 #                name = "Vertex"+str(ii+1)
@@ -68,24 +70,38 @@ __version__ = "0.2021.12.14"
 #        for vert in vertices:
 #            shape_pts = []
 #            for edge in object.Shape.removeSplitter().Edges:
+#                hasCurve = False
 #                for edge_vert in edge.Vertexes:
 #                    if edge_vert.Point.isEqual(vert.Point,1e-7):
 #                        #this is an edge containing a selected vertex
+#                        if edge.Curve.TypeId != "Part::GeomLine":
+#                            hasCurve = True #we'll skip this edge
+#                        else:
+#                            hasCurve = False
 #                        other_vert = self.getOtherVertex(edge_vert, edge)
 #                        if other_vert:
 #                            dir = edge_vert.Point.sub(other_vert.Point).normalize()
 #                            #line = Part.makeLine(edge_vert.Point,edge_vert.Point.sub(dir.multiply(fp.Length)))
 #                            mid = edge_vert.Point.sub(dir.multiply(fp.Length)) #point along edge fp.Length distance from selected vertex
-#                            shape_pts.append(mid)
-#            mapped[vert] = shape_pts
+#                            if not hasCurve:
+#                                shape_pts.append(mid)
+#            if solid:
+#                if len(shape_pts) >= 3:
+#                    mapped[vert] = shape_pts
+#            else:
+#                if len(shape_pts) >= 2:
+#                    mapped[vert] = shape_pts
 #        for k,val in mapped.items():
 #            if not val:
 #                FreeCAD.Console.PrintError("Error making bevel\n")
 #                return
-#            pts = val+[val[0]]
+#            pts = self.sortPoints(val)
+#            pts.append(val[0])
 #            if len(pts) > 2:
 #                poly = Part.makePolygon(pts)
-#                loft = Part.makeLoft([k,poly],True)
+#                loft = Part.makeLoft([k,poly],solid)
+#                if not solid:
+#                    loft = loft.reversed() if not bool(loft.Face1.normalAt(0,0) == object.Shape.Face1.normalAt(0,0)) else loft
 #                if object.Shape.cut(loft).isInside(k.Point,.01,True):
 #                    insideLofts.append(loft)
 #                else:
@@ -98,19 +114,30 @@ __version__ = "0.2021.12.14"
 #        origShape = object.Shape.removeSplitter()
 #        if len(outsideLofts)>1:
 #            outsideFusion = Part.Shape(outsideLofts[0]).fuse(outsideLofts[1:])
-#        else:
+#        elif len(outsideLofts) == 1:
 #            outsideFusion = outsideLofts[0]
+#        else:
+#            outsideFusion = Part.Shape()
 #        if len(insideLofts)>1:
 #            insideFusion = Part.Shape(insideLofts[0]).fuse(insideLofts[1:])
-#        else:
+#        elif len(insideLofts) == 1:
 #            insideFusion = insideLofts[0]
+#        else:
+#            insideFusion = Part.Shape()
 #        try:
 #            shape = object.Shape.cut(outsideFusion).fuse(insideFusion)
 #        except:
-#            shape = None
-#        if fp.Refine:
+#            FreeCAD.Console.PrintError("Error making boolean\n")
+#            shape = object.Shape
+#        if len(insideLofts) + len(outsideLofts) == 0:
+#            ## don't warn about not making any bevels if user is filleting all edges
+#            if hasattr(fp,"FilletAllEdges") and not fp.FilletAllEdges:
+#                FreeCAD.Console.PrintWarning("No bevels were made.\n")
+#        if fp.Refine and not shape.isNull():
 #            shape = shape.removeSplitter()
-#        fusion = insideFusion.fuse(outsideFusion).removeSplitter()
+#        fusion = insideFusion.fuse(outsideFusion)
+#        if not fusion.isNull():
+#            fusion = fusion.removeSplitter()
 #        if shape and bool(fp.FilletEdges or bool(hasattr(fp,"FilletAllEdges"))and fp.FilletAllEdges):
 #            if fp.Refine or len(insideLofts) == 0:
 #                if hasattr(fp,"FilletAllEdges") and fp.FilletAllEdges:
@@ -133,15 +160,43 @@ __version__ = "0.2021.12.14"
 #        fp.Shape = shape if shape else Part.Shape()
 #        if not self.editingMode:
 #            object.ViewObject.Visibility = False if shape else True
-
-
+#
+#    def sortPoints(self,pts):
+#        """ sortPoints(pts)
+#            sort pts, a list of vectors, according to distance from one point to the next
+#            pts[0] is taken first, then the nearest point to it is placed at pts[1]
+#            then pts[1] is used to find the nearest point to it and placed at pts[2], and so on
+#        """
+#        newList = [pts[0]]
+#        for ii in range(0, len(pts)):
+#            newList.extend([self.nearestPoint(newList[ii],pts,newList)])
+#        return newList
+#
+#    def nearestPoint(self, pt, pts, exclude):
+#        """ nearestPoint(pt, pts, exclude)
+#            pt is a vector, pts a list of vectors
+#            exlude is a list of vectors to exclude from process
+#            return nearest point to pt in pts and not in exclude"""
+#        if len(pts) == 0: #should never happen
+#            raise Exception("Error: nearestPoint() pts length = 0\n")
+#        nearest = pts[0]
+#        d = 10**100
+#        for p in pts:
+#            if p in exclude:
+#                continue
+#            dis = pt.distanceToPoint(p)
+#            if dis < d:
+#                d = dis
+#                nearest = p
+#        return nearest
+#
 #    def getOtherVertex(self,v0,edge):
 #        '''get the other vertex from this edge of which v0 is one vertex'''
 #        for v in edge.Vertexes:
 #            if not v.Point.isEqual(v0.Point,1e-7):
 #                return v
 #        return None #not found
-
+#
 #    def findCommonEdges(self, shape1, shape2):
 #        '''find the common edges of 2 shapes, return them as a list of edges of shape1'''
 #        common = []
