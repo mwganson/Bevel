@@ -52,18 +52,18 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
-** v0.2022.01.19 -- bug fix (typo in source code)
-** v0.2021.12.23 -- bug fix (sort edges prior to making polygon for lofting to point)
-** v0.2021.12.21 -- when base object is 2D face, ensure new faces are all on the same normal
-** v0.2021.12.16 -- don't use edges that are curves
--- if beveling a 3d object, only make bevels with at least 3 points
--- if beveling a 2d object, only make bevels with at least 2 points
---  warn if not at least one bevel was done unless FilletAllEdges = True, because user might only want to fillet all the edges
-** v0.2021.12.14 -- add handling of inside corners (fused instead of cut)
--- add FilletAllEdges property, to fillet all edges, not just newly created edges
-** v0.2021.10.10.rev3 -- bug fix, only need to worry about previous solid basefeature on deletion when inside PD body, so check for that first
-** v0.2021.10.10.rev2 -- bug fix, uninitialized variable
-** v0.2021.10.10 -- ensure next feature in the tree inherits bevel object's basefeature when bevel object is deleted
+** v0.2022.01.19 -- bug fix (typo in source code)<br/>
+** v0.2021.12.23 -- bug fix (sort edges prior to making polygon for lofting to point)<br/>
+** v0.2021.12.21 -- when base object is 2D face, ensure new faces are all on the same normal<br/>
+** v0.2021.12.16 -- don't use edges that are curves<br/>
+-- if beveling a 3d object, only make bevels with at least 3 points<br/>
+-- if beveling a 2d object, only make bevels with at least 2 points<br/>
+--  warn if not at least one bevel was done unless FilletAllEdges = True, because user might only want to fillet all the edges<br/>
+** v0.2021.12.14 -- add handling of inside corners (fused instead of cut)<br/>
+-- add FilletAllEdges property, to fillet all edges, not just newly created edges<br/>
+** v0.2021.10.10.rev3 -- bug fix, only need to worry about previous solid basefeature on deletion when inside PD body, so check for that first<br/>
+** v0.2021.10.10.rev2 -- bug fix, uninitialized variable<br/>
+** v0.2021.10.10 -- ensure next feature in the tree inherits bevel object's basefeature when bevel object is deleted<br/>
 ** v0.2021.10.09 -- change icon to more colorized version<br/>
 ** do not claim children by default in part design <br/>
 ** add simple vertex editor <br/>
