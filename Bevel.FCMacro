@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2022.01.19"
-#__version__ = "0.2022.01.19"
+__version__ = "0.2022.04.06"
+#__version__ = "0.2022.04.06"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -135,7 +135,12 @@ __version__ = "0.2022.01.19"
 #                FreeCAD.Console.PrintWarning("No bevels were made.\n")
 #        if fp.Refine and not shape.isNull():
 #            shape = shape.removeSplitter()
-#        fusion = insideFusion.fuse(outsideFusion)
+#        if not insideFusion.isNull() and not outsideFusion.isNull():
+#            fusion = insideFusion.fuse(outsideFusion)
+#        elif not insideFusion.isNull():
+#            fusion = insideFusion
+#        elif not outsideFusion.isNull():
+#            fusion = outsideFusion
 #        if not fusion.isNull():
 #            fusion = fusion.removeSplitter()
 #        if shape and bool(fp.FilletEdges or bool(hasattr(fp,"FilletAllEdges"))and fp.FilletAllEdges):
