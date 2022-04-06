@@ -52,6 +52,7 @@ Alternatively, I have implemented a simple vertex editor with which you can sele
 <img src="bevel_scr3.png" alt="screenshot 3">
 
 ## Changelog
+** v0.2022.04.06 -- check for null shapes of both insideFusion and outsideFusion before fusing them together<br/>
 ** v0.2022.01.19 -- bug fix (typo in source code)<br/>
 ** v0.2021.12.23 -- bug fix (sort edges prior to making polygon for lofting to point)<br/>
 ** v0.2021.12.21 -- when base object is 2D face, ensure new faces are all on the same normal<br/>
