@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-__version__ = "0.2022.04.06"
-#__version__ = "0.2022.04.06"
+__version__ = "0.2022.04.06b"
+#__version__ = "0.2022.04.06b"
 #__title__ = "Bevel Macro"
 #__author__ = "<TheMarkster> 2021"
 #__license__ = "LGPL 2.1"
@@ -125,7 +125,12 @@ __version__ = "0.2022.04.06"
 #        else:
 #            insideFusion = Part.Shape()
 #        try:
-#            shape = object.Shape.cut(outsideFusion).fuse(insideFusion)
+#            if not outsideFusion.isNull():
+#                shape = object.Shape.cut(outsideFusion)
+#            else:
+#                shape = object.Shape
+#            if not insideFusion.isNull():
+#                shape = shape.fuse(insideFusion)
 #        except:
 #            FreeCAD.Console.PrintError("Error making boolean\n")
 #            shape = object.Shape
